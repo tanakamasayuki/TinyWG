@@ -1,0 +1,128 @@
+"""A board running TinyWG (lwIP wg0) on Wi-Fi, reached from the PC.
+
+The PC side is the Python WireGuard peer (helpers/wg_peer.py, itself checked
+against the Linux kernel in pypeer_selftest/). The PC initiates, because it may
+sit behind NAT (WSL2) where the board cannot reach it first; once the board
+knows the PC's endpoint it also initiates a handshake of its own.
+
+    uv run --env-file .env pytest board_responder --profile esp32 -s
+"""
+
+import base64
+import re
+import struct
+import sys
+import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from helpers.wg_kernel import keypair  # noqa: E402
+from helpers.wg_peer import WgPeer, icmp_echo, parse_ipv4, udp  # noqa: E402
+
+PC, BOARD = "10.9.0.1", "10.9.0.2"
+
+
+def start(dut, psk=None):
+    """Configures the board with fresh keys; returns the Python peer facing it."""
+    board_priv, board_pub = keypair()
+    pc_priv, pc_pub = keypair()
+    line = f"CFG {board_priv} {pc_pub}" + (f" {psk}" if psk else "")
+    dut.write(line + "\n")
+    m = dut.expect(re.compile(rb"DUT-READY ip=(\S+) port=(\d+) peer=(\d+)"), timeout=20)
+    endpoint = (m.group(1).decode(), int(m.group(2)))
+    return WgPeer(base64.b64decode(pc_priv), base64.b64decode(board_pub), endpoint,
+                  psk=base64.b64decode(psk) if psk else b"\0" * 32)
+
+
+def udp_echo(peer, payload, sport=40000):
+    peer.send_ip(udp(PC, BOARD, sport, 7, payload))
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline:
+        p = peer.recv_ip(timeout=deadline - time.monotonic())
+        if p is None:
+            return None
+        src, _, proto, body = parse_ipv4(p)
+        if proto == 17 and struct.unpack_from("!H", body, 2)[0] == sport:
+            return body[8:]
+    return None
+
+
+def stats(dut):
+    dut.write("STATS\n")
+    m = dut.expect(re.compile(rb"STATS [^\r\n]+"), timeout=5)
+    line = m.group(0).decode()
+    print("  " + line)
+    return dict(kv.split("=") for kv in line.split()[1:])
+
+
+def test_board_responder(dut, record_property):
+    m = dut.expect(re.compile(rb"WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+)"), timeout=60)
+    assert m.group(1), f"Wi-Fi: {m.group(2).decode()}"
+    dut.expect("DUT-WAIT-CONFIG", timeout=10)
+
+    peer = start(dut)
+    try:
+        # Handshake from the PC; the board's X25519 work dominates the time.
+        t = time.monotonic()
+        assert peer.handshake(timeout=5), "no handshake response"
+        hs_ms = (time.monotonic() - t) * 1000
+        print(f"  handshake round trip {hs_ms:.0f} ms")
+        record_property("handshake_ms", f"{hs_ms:.0f}")
+
+        # lwIP answers ping on wg0.
+        rtts = []
+        for seq in range(5):
+            t = time.monotonic()
+            peer.send_ip(icmp_echo(PC, BOARD, 0x1234, seq))
+            src, dst, proto, body = parse_ipv4(peer.recv_ip())
+            rtts.append((time.monotonic() - t) * 1000)
+            assert (src, dst, proto, body[0]) == (BOARD, PC, 1, 0)
+        print(f"  ping rtt {min(rtts):.1f} / {sum(rtts) / len(rtts):.1f} / {max(rtts):.1f} ms")
+        record_property("ping_ms_avg", f"{sum(rtts) / len(rtts):.1f}")
+
+        # A WiFiUDP socket on the board echoes through the tunnel, up to the full MTU.
+        for size in (1, 100, 512, 1000, 1392):
+            payload = bytes((i * 31 + size) & 0xFF for i in range(size))
+            assert udp_echo(peer, payload) == payload, f"udp echo {size} bytes"
+
+        # A run of echoes: counters and the replay window over many packets.
+        t = time.monotonic()
+        ok = sum(udp_echo(peer, b"seq%04d" % i + bytes(200)) is not None for i in range(100))
+        rate = 100 * 207 * 2 / (time.monotonic() - t) / 1024
+        print(f"  100 sequential echoes: {ok}/100, {rate:.1f} KiB/s both ways")
+        record_property("echo_kib_s", f"{rate:.1f}")
+        assert ok == 100
+
+        # The board initiates a new handshake to the endpoint it learned.
+        old = peer.session.recv_key
+        dut.write("CONNECT\n")
+        dut.expect("CONNECT 1", timeout=5)
+        peer.pump(2.0)
+        assert peer.session.recv_key != old, "board-initiated handshake not seen"
+        assert udp_echo(peer, b"after-rekey") == b"after-rekey"
+
+        s = stats(dut)
+        assert s["replay"] == "0" and s["decrypt"] == "0" and s["badmac"] == "0"
+        assert s["up"] == "1"
+    finally:
+        peer.close()
+
+    # Pre-shared key, then a stranger the board must ignore.
+    psk, _ = keypair()
+    peer = start(dut, psk=psk)
+    try:
+        assert peer.handshake(timeout=5)
+        assert udp_echo(peer, b"with-psk") == b"with-psk"
+    finally:
+        peer.close()
+
+    good = start(dut)
+    stranger_priv, _ = keypair()
+    stranger = WgPeer(base64.b64decode(stranger_priv), good.peer_pub, good.endpoint)
+    try:
+        assert not stranger.handshake(timeout=2), "board answered an unknown key"
+        assert stats(dut)["unknown"] == "1"
+    finally:
+        stranger.close()
+        good.close()
