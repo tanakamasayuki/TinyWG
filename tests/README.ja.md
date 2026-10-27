@@ -16,7 +16,10 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 | `crypto_vectors/` | BLAKE2s、MAC、KDF、X25519、ChaCha20-Poly1305 の出力を、Python の `hashlib` / `cryptography` で独立に計算した値と照合。AEAD の改ざん検出、低位数点の拒否、Base64 | 同上 |
 | `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い | 同上 |
 | `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信 | host のみ |
-| `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / ch32v307 / picow |
+| `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / esp32s3 / ch32v307 / picow |
+| `pypeer_selftest/` | 実機テストで PC 側に使う Python 製 WireGuard ピア(`helpers/wg_peer.py`)を、カーネル WireGuard と突き合わせて検証(イニシエータ / レスポンダ、PSK あり) | PC のみ(スケッチなし) |
+| `board_responder/` | 実機が Wi-Fi で TinyWG(lwIP の wg0)を動かし、PC の Python ピアから接続。ping(lwIP が応答)、WiFiUDP の echo(1392 B まで)、100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 | esp32 / esp32s3(要 `.env` の Wi-Fi) |
+| `board_pair/` | 実機 2 台。主 DUT が SoftAP を立てて WireGuard サーバー、`peer_client/` が接続してクライアント。トンネル越しの TCP echo(32 KB) | esp32 + esp32s3(外部 AP 不要) |
 
 ## kernel_interop の仕組み
 
@@ -26,6 +29,18 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 - DUT: 10.9.0.2、127.0.0.1:51821。トンネル内の ICMP echo と UDP echo(7 番)に応答します
 
 host の DUT は Serial の接続を 1 回しか受け付けません。そのため 1 つのテスト関数の中で、シナリオごとに `CFG` コマンドで鍵を変えて設定し直し、シナリオごとの結果を `SCENARIO PASS/FAIL` と junit の property に出します。
+
+## 実機で動かす
+
+`.env.example` を `.env` にコピーし、シリアルポートと Wi-Fi を書きます。Wi-Fi は `build_config.toml` 経由で `WIFI_SSID` / `WIFI_PASSWORD` としてスケッチに渡ります。
+
+```sh
+uv run --env-file .env pytest crypto_vectors core_pair bench_crypto --profile esp32 -s
+uv run --env-file .env pytest board_responder --profile esp32 -s
+uv run --env-file .env pytest board_pair --profile esp32 --peer-profile client:esp32s3 -s
+```
+
+`board_responder` では PC 側から先にハンドシェイクします。PC が NAT の内側(WSL2 など)にあっても、返事は NAT を通って戻ってくるためです。ボードがエンドポイントを覚えた後は、ボードからの再ハンドシェイクも試します。
 
 ## 実機で計測する
 
