@@ -211,6 +211,24 @@ void setup()
     EXPECT_TRUE("passive keepalive", g_wireCount == 1 && g_wire[0].len == 32);
     pump();
 
+    // Persistent keepalive turned on while idle: one at the next tick, then every interval.
+    EXPECT_TRUE("set keepalive", g_dev[0].setPersistentKeepalive(0, 25));
+    g_now += 100;
+    g_dev[0].tick(g_now);
+    EXPECT_TRUE("keepalive at once", g_wireCount == 1 && g_wire[0].len == 32);
+    pump();
+    g_now += 24000;
+    g_dev[0].tick(g_now);
+    EXPECT_TRUE("no keepalive before interval", g_wireCount == 0);
+    g_now += 1000;
+    g_dev[0].tick(g_now);
+    EXPECT_TRUE("keepalive at interval", g_wireCount == 1 && g_wire[0].len == 32);
+    pump();
+    g_dev[0].setPersistentKeepalive(0, 0);
+    g_now += 30000;
+    g_dev[0].tick(g_now);
+    EXPECT_TRUE("keepalive off", g_wireCount == 0);
+
     // Rekey: the initiator starts a new handshake on send after 120 s.
     uint32_t hs0 = g_dev[0].stats().handshakesInitiated;
     advance(120000);

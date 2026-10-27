@@ -92,9 +92,18 @@ class WgPeer:
         self.responded = 0       # handshakes the board initiated and we answered
         self.last_handshake = None   # time.monotonic() of the latest completed handshake
         self.last_timestamp = b"\0" * 12
+        self.last_from = None    # source of the latest datagram; becomes the endpoint once authenticated
 
     def close(self):
         self.sock.close()
+
+    def rebind(self):
+        """Moves to a fresh UDP port, as a NAT rebinding would."""
+        old = self.sock
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind((old.getsockname()[0], 0))
+        old.close()
+        return self.sock.getsockname()[1]
 
     # ---- handshake, initiator
 
@@ -137,6 +146,7 @@ class WgPeer:
             h2 = _hash(h2, tau)
             _unaead(k, 0, data[44:60], h2)   # raises on a wrong key
             send_key, recv_key = _kdf(ck2, b"", 2)
+            self.endpoint = self.last_from
             self.session = Session(send_key, recv_key, index, sender)
             self.last_handshake = time.monotonic()
             self.send_ip(b"")   # keepalive: confirms the session to the responder
@@ -162,6 +172,7 @@ class WgPeer:
         assert ts > self.last_timestamp, "stale timestamp"
         self.last_timestamp = ts
         h = _hash(h, data[88:116])
+        self.endpoint = self.last_from
 
         eph = X25519PrivateKey.generate()
         eph_pub = _pub(eph)
@@ -208,6 +219,7 @@ class WgPeer:
             if receiver != self.session.local_index:
                 continue
             plain = _unaead(self.session.recv_key, counter, data[16:], b"")
+            self.endpoint = self.last_from   # roaming: follow the latest authenticated source
             if not plain:
                 self.keepalives += 1
                 continue
@@ -228,7 +240,7 @@ class WgPeer:
             return None
         self.sock.settimeout(remaining)
         try:
-            data, _ = self.sock.recvfrom(4096)
+            data, self.last_from = self.sock.recvfrom(4096)
             return data
         except socket.timeout:
             return None

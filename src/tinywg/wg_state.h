@@ -79,6 +79,7 @@ struct Peer {
     uint8_t allowedCount;
     Endpoint endpoint;
     uint16_t keepaliveSeconds;  // persistent keepalive, 0 = off
+    bool keepaliveNow;          // just turned on: send one at the next tick
 
     uint8_t lastTimestamp[12];  // greatest TAI64N accepted from this peer
     bool initiationReceived;

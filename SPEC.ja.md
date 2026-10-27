@@ -80,7 +80,7 @@ wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がト�
 ### 4.1 プロトコル(必須)
 
 - Noise_IKpsk2_25519_ChaChaPoly_BLAKE2s ハンドシェイク(Initiation / Response)
-- Transport Data / Keepalive / PersistentKeepalive
+- Transport Data / Keepalive / PersistentKeepalive(設定した時点で 1 つ送る。Linux と同じ)
 - PresharedKey(任意)
 - 鍵更新タイマー(REKEY_AFTER_TIME / REJECT_AFTER_TIME / REKEY_AFTER_MESSAGES / REKEY_TIMEOUT 等)
 - セッションの current / previous / next 切替
@@ -153,7 +153,11 @@ RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 79
 
 PC → ボード(`tests/board_responder`、家庭用 AP 経由、PC の Python ピアが開始): ハンドシェイク往復 ESP32 94 ms / S3 100 ms、トンネル越しの ping 約 3 ms、200 B の UDP echo 100 往復(往復合計 ESP32 約 61 KiB/s、S3 約 69 KiB/s。1 往復ずつ待つため Wi-Fi の遅延律速)、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否まで通過。CH32V307 も Ethernet で同じ試験に通過(ハンドシェイク往復 106 ms、ping 約 1 ms、UDP echo 100 往復で往復合計 約 158 KiB/s)。`crypto_vectors` / `core_pair` / `smoke` も実機で通過。
 
-長時間試験(`tests/board_responder/test_board_longrun.py`、ESP32、約 14 分): ボード側からの鍵の更新が 120 秒ちょうど(その間の echo の取りこぼし 0)、persistent keepalive 15 秒で 65 秒間に 4 回、無通信で最後のハンドシェイクから 547 秒後に鍵のゼロ化(20 秒ごとの確認なので 540 秒と矛盾しない)、その後 PC からのハンドシェイクで復帰。Pico W の実機計測は未実施。
+長時間試験(`tests/board_responder/test_board_longrun.py`、ESP32、約 14 分): ボード側からの鍵の更新が 120 秒ちょうど(その間の echo の取りこぼし 0)、persistent keepalive 15 秒で 65 秒間に 4 回、無通信で最後のハンドシェイクから 547 秒後に鍵のゼロ化(20 秒ごとの確認なので 540 秒と矛盾しない)、その後 PC からのハンドシェイクで復帰。
+
+Wi-Fi の切断(`tests/board_responder/test_board_wifi.py`、ESP32 / S3): AP から 5 秒離れても同じ鍵のまま復帰(再接続まで約 3 秒、その後 keepalive で PC に居場所を知らせる)。AP から離れている間にボードが始めたハンドシェイクは、送れないまま 5 秒ごとに再送され、再接続から 2.5〜3 秒で成立。PC 側のポートが変わっても(NAT の割り当て直し)ボードが追従。
+
+Pico W の実機計測は未実施。
 
 ## 6. テスト方針
 

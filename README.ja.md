@@ -19,7 +19,7 @@ Arduino 向けの、コアに依存しない WireGuard 実装です。**イニ�
 
 | コア | `TinyWG` (lwIP) | `TinyWGUdp` | 乱数源 | 確認状況 |
 |---|---|---|---|---|
-| ESP32 / ESP32-S3 (arduino-esp32 3.3) | ○(NAPT 可) | ○ | `esp_fill_random` | 実機で確認(PC との接続、ボード 2 台での TCP、NAPT、長時間試験、計測) |
+| ESP32 / ESP32-S3 (arduino-esp32 3.3) | ○(NAPT 可) | ○ | `esp_fill_random` | 実機で確認(PC との接続、ボード 2 台での TCP、NAPT、長時間試験、Wi-Fi の切断からの復帰、計測) |
 | RP2040 / RP2350 (arduino-pico 6.3、Pico W / Pico 2 W) | ○(FreeRTOS モードは未対応) | ○ | `get_rand_64` | ビルドのみ |
 | CH32V (ArduinoCore-CH32RV 0.4、Network ライブラリ) | ○ | ○ | TRNG(V307 など) | V307 の実機で確認(Ethernet で PC との接続、計測) |
 | lang-ship:host(PC 上のテスト用) | — | ○ | `/dev/urandom` | Linux カーネル WireGuard と相互接続テスト済み |
@@ -55,7 +55,7 @@ void setup()
 }
 ```
 
-`begin()` の後は、10.9.0.0/24 宛ての通信が lwIP によって wg0 に流れます。`loop()` から呼ぶものはありません。
+`begin()` の後は、10.9.0.0/24 宛ての通信が lwIP によって wg0 に流れます。`loop()` から呼ぶものはありません。persistent keepalive を設定すると、その時点で keepalive を 1 つ送る(セッションがなければハンドシェイクを始める)ので、送るものがなくてもすぐにつながります。
 
 ## 使い方(サーバー)
 

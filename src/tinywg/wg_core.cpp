@@ -280,6 +280,9 @@ bool Device::setPersistentKeepalive(int index, uint16_t seconds)
     Peer *p = peer(index);
     if (!p) return false;
     p->keepaliveSeconds = seconds;
+    // Like Linux, send one right away: an idle tunnel would otherwise never
+    // start the timer, which is armed only by traffic.
+    p->keepaliveNow = seconds != 0;
     if (seconds == 0) p->persistentKeepalive.disarm();
     return true;
 }
@@ -890,8 +893,9 @@ void Device::tick(uint32_t now)
             p->newHandshake.disarm();
             initiateHandshake(p, false, now);
         }
-        if (p->persistentKeepalive.expired(now)) {
+        if (p->persistentKeepalive.expired(now) || p->keepaliveNow) {
             p->persistentKeepalive.disarm();
+            p->keepaliveNow = false;
             sendData(p, nullptr, 0, now);
         }
         if (p->zeroKeys.expired(now)) {

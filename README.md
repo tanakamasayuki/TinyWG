@@ -19,7 +19,7 @@ Some uses:
 
 | Core | `TinyWG` (lwIP) | `TinyWGUdp` | Random source | Verified |
 |---|---|---|---|---|
-| ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (PC to board, two-board TCP, NAPT, long run, benchmarks) |
+| ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (PC to board, two-board TCP, NAPT, long run, Wi-Fi outages, benchmarks) |
 | RP2040 / RP2350 (arduino-pico 6.3, Pico W / Pico 2 W) | yes (not in FreeRTOS mode) | yes | `get_rand_64` | build only |
 | CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | on board, V307 (PC to board over Ethernet, benchmarks) |
 | lang-ship:host (tests on a PC) | — | yes | `/dev/urandom` | interop-tested against the Linux kernel WireGuard |
@@ -55,7 +55,7 @@ void setup()
 }
 ```
 
-After `begin()`, lwIP routes traffic for 10.9.0.0/24 into wg0. Nothing needs to be called from `loop()`.
+After `begin()`, lwIP routes traffic for 10.9.0.0/24 into wg0. Nothing needs to be called from `loop()`. Setting persistent keepalive sends one keepalive right away (a handshake if there is no session yet), so the tunnel comes up without waiting for traffic.
 
 ## Usage (server)
 
