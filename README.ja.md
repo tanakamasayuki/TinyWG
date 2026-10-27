@@ -15,12 +15,12 @@ TLS が重い、または載らないマイコンで、暗号化された経路�
 
 | コア | `TinyWG` (lwIP) | `TinyWGUdp` | 乱数源 | 確認状況 |
 |---|---|---|---|---|
-| ESP32 (arduino-esp32 3.3) | ○(NAPT 可) | ○ | `esp_fill_random` | ビルドのみ |
+| ESP32 / ESP32-S3 (arduino-esp32 3.3) | ○(NAPT 可) | ○ | `esp_fill_random` | 実機で確認(ボード 2 台での TCP、計測) |
 | RP2040 / RP2350 (arduino-pico 6.3、Pico W / Pico 2 W) | ○(FreeRTOS モードは未対応) | ○ | `get_rand_64` | ビルドのみ |
 | CH32V (ArduinoCore-CH32RV 0.4、Network ライブラリ) | ○ | ○ | TRNG(V307 など) | ビルドのみ |
 | lang-ship:host(PC 上のテスト用) | — | ○ | `/dev/urandom` | Linux カーネル WireGuard と相互接続テスト済み |
 
-実機での確認と、実機上での速度計測はまだです(`tests/bench_crypto` で計測できます)。
+ESP32 では X25519 が 1 回 17.6 ms、レスポンダの応答処理が 72.7 ms(S3 は 12.5 ms / 52.0 ms)でした。詳細は [SPEC.ja.md](SPEC.ja.md) §5.2。
 
 ### フットプリント(同じ機能のスケッチに TinyWG を足した分)
 

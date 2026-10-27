@@ -15,12 +15,12 @@ It is meant for microcontrollers where TLS is too heavy or not available: a Wire
 
 | Core | `TinyWG` (lwIP) | `TinyWGUdp` | Random source | Verified |
 |---|---|---|---|---|
-| ESP32 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | build only |
+| ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (two-board TCP, benchmarks) |
 | RP2040 / RP2350 (arduino-pico 6.3, Pico W / Pico 2 W) | yes (not in FreeRTOS mode) | yes | `get_rand_64` | build only |
 | CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | build only |
 | lang-ship:host (tests on a PC) | — | yes | `/dev/urandom` | interop-tested against the Linux kernel WireGuard |
 
-On-board testing and on-board speed measurements are still to do (`tests/bench_crypto` measures them).
+On an ESP32, one X25519 takes 17.6 ms and answering a handshake 72.7 ms (ESP32-S3: 12.5 ms / 52.0 ms); see SPEC.ja.md §5.2.
 
 ### Footprint (added to an otherwise identical sketch)
 

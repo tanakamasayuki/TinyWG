@@ -1,6 +1,6 @@
 # TinyWG 仕様書（ドラフト）
 
-> ステータス: Phase 0〜3 を実装済み(2026-10-27)。実機での動作確認・速度計測は未実施。数値・最小構成は **実測してから決定** する(本文中 `TBD(実測)` と表記)。
+> ステータス: Phase 0〜3 を実装済み(2026-10-27)。ESP32 / ESP32-S3 は実機で確認済み、Pico と CH32V は未確認。数値・最小構成は **実測してから決定** する(本文中 `TBD(実測)` と表記)。
 
 ## 1. 目的と範囲
 
@@ -137,6 +137,20 @@ RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 79
 
 削減の候補(実測を見て判断): staged packet の無効化、ピア数・MTU の縮小、lwIP アダプタの作業バッファと Device の送信バッファの共用、受信 pbuf をそのまま `ip_input` に渡すゼロコピー化。
 
+### 5.2 実機での計測(2026-10-27、`tests/bench_crypto`、Arduino 既定の最適化)
+
+| | ESP32(D0WD-V3、240 MHz) | ESP32-S3(240 MHz) |
+|---|---|---|
+| X25519 1 回 | 17.6 ms | 12.5 ms |
+| ハンドシェイク: 開始メッセージ作成(イニシエータ) | 36.3 ms | 26.1 ms |
+| ハンドシェイク: 受信して応答(レスポンダ) | 72.7 ms | 52.0 ms |
+| ハンドシェイク: 応答を受けて完了(イニシエータ) | 36.5 ms | 26.1 ms |
+| ChaCha20-Poly1305(1420 B) | 2.6 MB/s(0.53 ms/パケット) | 3.5 MB/s(0.40 ms/パケット) |
+| BLAKE2s | 4.0 MB/s | 5.3 MB/s |
+| `sizeof(Device)` | 6,280 B | 6,280 B |
+
+実機 2 台(`tests/board_pair`、ESP32 が SoftAP + サーバー、S3 がクライアント): ハンドシェイク 171 ms(Wi-Fi の往復込み)、トンネル越しの TCP echo 32 KB を往復合計 約 376 KiB/s、エラーなし。CH32V307 と Pico W の実機計測は未実施。
+
 ## 6. テスト方針
 
 PCMFlowUDP のテスト構成(pytest-embedded + Arduino CLI、`TEST done N/M` プロトコル)を踏襲する。
@@ -152,7 +166,8 @@ PCMFlowUDP のテスト構成(pytest-embedded + Arduino CLI、`TEST done N/M` �
 
 - Phase 0: 計測スケッチ(`tests/bench_crypto`)とフットプリントの計測は済み。実機での速度計測は未実施
 - Phase 1: 済み。host 上でペア試験と Linux カーネル WireGuard との相互接続試験(イニシエータ / レスポンダ両方)が通っている
-- Phase 2〜3: ESP32、arduino-pico(RP2040 / RP2350)、CH32V307 でビルドが通る。実機での確認は未実施
+- Phase 2: ESP32 / ESP32-S3 の実機で動作確認済み(単体テスト、計測、ボード 2 台での TCP)。PC からボードへの接続試験(`board_responder`)は用意済みで、Wi-Fi の設定待ち
+- Phase 3: arduino-pico(RP2040 / RP2350)、CH32V307 はビルドのみ。実機での確認は未実施
 - Phase 4: ESP32 の NAPT 連携(`enableNapt()`)はビルドのみ。MQTT ブローカーの例は未着手
 
 1. **Phase 0 — 実測**: 暗号プリミティブ単体を各ターゲットでビルドし、Flash/RAM・X25519 時間・ChaChaPoly スループットを計測。外側 UDP 方式(`udp_pcb` 直 / Arduino `UDP&`)の比較
