@@ -1,6 +1,6 @@
 # 初心者ガイド
 
-[English](guide-beginner.md) | [上級者ガイド](guide-advanced.ja.md) | [README](../README.ja.md)
+[English](guide-beginner.md) | [上級者ガイド](guide-advanced.ja.md) | [API リファレンス](api.ja.md) | [README](../README.ja.md)
 
 このガイドでは、ESP32 と Linux の PC を WireGuard でつなぎ、トンネル越しに通信できたことを確かめます。Arduino でスケッチを書き込んだことがあれば十分です。WireGuard の知識は要りません。
 

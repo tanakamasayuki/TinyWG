@@ -19,6 +19,7 @@ Some uses:
 
 - [Beginner's guide](docs/guide-beginner.md): from making keys to an ESP32 talking to a Linux PC, step by step
 - [Advanced guide](docs/guide-advanced.md): structure, locking, routing and NAPT, keys and time, MTU and memory, timers, diagnosis, `TinyWGUdp` and `tinywg::Device`
+- [API reference](docs/api.md): every public method and type
 - [Specification](SPEC.md): design and on-board measurements
 - [Tests](tests/README.ja.md) (Japanese): the test suites and how to run them
 

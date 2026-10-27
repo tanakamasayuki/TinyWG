@@ -7,3 +7,5 @@
 - (JA) 初心者ガイドと上級者ガイド(docs/、日英)。
 - (EN) SPEC.md in English; a README for each example.
 - (JA) 英語版の SPEC.md、サンプルごとの README。
+- (EN) API reference (docs/api.md), in English and Japanese.
+- (JA) API リファレンス(docs/api.ja.md、日英)。

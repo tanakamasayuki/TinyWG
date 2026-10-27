@@ -1,6 +1,6 @@
 # 上級者ガイド
 
-[English](guide-advanced.md) | [初心者ガイド](guide-beginner.ja.md) | [README](../README.ja.md) | [仕様書](../SPEC.ja.md)
+[English](guide-advanced.md) | [初心者ガイド](guide-beginner.ja.md) | [API リファレンス](api.ja.md) | [README](../README.ja.md) | [仕様書](../SPEC.ja.md)
 
 TinyWG の構成、API の細かい振る舞い、運用で気をつける点をまとめます。[初心者ガイド](guide-beginner.ja.md)の内容は済んでいるものとして書いています。
 

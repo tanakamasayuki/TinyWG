@@ -14,3 +14,12 @@ enableNapt	KEYWORD2
 onPacket	KEYWORD2
 setRandom	KEYWORD2
 setWallClock	KEYWORD2
+setMtu	KEYWORD2
+mtu	KEYWORD2
+stats	KEYWORD2
+send	KEYWORD2
+update	KEYWORD2
+device	KEYWORD2
+netif	KEYWORD2
+begin	KEYWORD2
+end	KEYWORD2

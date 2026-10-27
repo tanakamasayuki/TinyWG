@@ -1,6 +1,6 @@
 # Beginner's guide
 
-[日本語](guide-beginner.ja.md) | [Advanced guide](guide-advanced.md) | [README](../README.md)
+[日本語](guide-beginner.ja.md) | [Advanced guide](guide-advanced.md) | [API reference](api.md) | [README](../README.md)
 
 This guide connects an ESP32 to a Linux PC with WireGuard and checks that traffic flows through the tunnel. You only need to have uploaded an Arduino sketch before; no WireGuard knowledge is assumed.
 

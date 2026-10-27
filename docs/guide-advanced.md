@@ -1,6 +1,6 @@
 # Advanced guide
 
-[日本語](guide-advanced.ja.md) | [Beginner's guide](guide-beginner.md) | [README](../README.md) | [Specification](../SPEC.md)
+[日本語](guide-advanced.ja.md) | [Beginner's guide](guide-beginner.md) | [API reference](api.md) | [README](../README.md) | [Specification](../SPEC.md)
 
 How TinyWG is built, what the API does in detail, and what to watch for in the field. It assumes you have been through the [beginner's guide](guide-beginner.md).
 

@@ -19,6 +19,7 @@ Arduino 向けの、コアに依存しない WireGuard 実装です。**イニ�
 
 - [初心者ガイド](docs/guide-beginner.ja.md): ESP32 と Linux の PC をつなぐところまで、鍵の作り方から順に説明します
 - [上級者ガイド](docs/guide-advanced.ja.md): 構成、排他、ルーティングと NAPT、鍵と時刻の管理、MTU とメモリ、タイマー、診断、`TinyWGUdp` / `tinywg::Device` の使い方
+- [API リファレンス](docs/api.ja.md): すべての公開メソッドと型
 - [仕様書](SPEC.ja.md): 設計と実機での計測値
 - [テスト](tests/README.ja.md): テストの一覧と動かし方
 
