@@ -6,7 +6,13 @@
 #include <lwip/timeouts.h>
 #include <string.h>
 
-#if !NO_SYS && LWIP_TCPIP_CORE_LOCKING
+#if defined(ARDUINO_ARCH_RP2040)
+#if defined(__FREERTOS)
+#error "TinyWG: arduino-pico in FreeRTOS mode is not supported yet (lwIP runs in its own task there)"
+#endif
+#include <lwip_wrap.h>
+#include <new>
+#elif !NO_SYS && LWIP_TCPIP_CORE_LOCKING
 #include <lwip/tcpip.h>
 #endif
 #if defined(IP_NAPT) && IP_NAPT
@@ -15,16 +21,27 @@
 
 static constexpr uint32_t kTimerMs = 100;
 
+// ESP32: the lwIP core lock. arduino-pico: the same recursive lock its lwIP
+// wrappers take (LWIPMutex has no state, so constructing and destroying one
+// is the lock and the unlock). CH32V: lwIP runs only from yield(), no lock.
+#if defined(ARDUINO_ARCH_RP2040)
+static uint8_t lwipMutexStorage[sizeof(LWIPMutex)];
+#endif
+
 void TinyWG::lock()
 {
-#if !NO_SYS && LWIP_TCPIP_CORE_LOCKING
+#if defined(ARDUINO_ARCH_RP2040)
+    new (lwipMutexStorage) LWIPMutex();
+#elif !NO_SYS && LWIP_TCPIP_CORE_LOCKING
     LOCK_TCPIP_CORE();
 #endif
 }
 
 void TinyWG::unlock()
 {
-#if !NO_SYS && LWIP_TCPIP_CORE_LOCKING
+#if defined(ARDUINO_ARCH_RP2040)
+    reinterpret_cast<LWIPMutex *>(lwipMutexStorage)->~LWIPMutex();
+#elif !NO_SYS && LWIP_TCPIP_CORE_LOCKING
     UNLOCK_TCPIP_CORE();
 #endif
 }
