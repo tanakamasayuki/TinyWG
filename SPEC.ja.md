@@ -1,6 +1,6 @@
 # TinyWG 仕様書（ドラフト）
 
-> ステータス: 要件整理段階。数値・最小構成・一部の方式は **実測してから決定** する（本文中 `TBD(実測)` と表記）。
+> ステータス: Phase 0〜3 を実装済み(2026-10-27)。実機での動作確認・速度計測は未実施。数値・最小構成は **実測してから決定** する(本文中 `TBD(実測)` と表記)。
 
 ## 1. 目的と範囲
 
@@ -24,10 +24,10 @@
 
 | コア | NIC | lwIP 形態 | 備考 |
 |---|---|---|---|
-| ESP32 (arduino-esp32) | Wi-Fi / Ethernet | esp-lwip(OS あり、tcpip スレッド) | NAPT(`IP_NAPT`) 利用可 |
-| RP2040 / RP2350 (arduino-pico) | CYW43 Wi-Fi / Ethernet | 本家 lwIP(NO_SYS + async_context) | NAPT なし |
-| CH32V (ArduinoCore-CH32RV) | 内蔵 Ethernet / USB NIC | lwIP | 詳細構成は要調査 |
-| host (lang-ship:host) | ループバック | なし(テスト用) | WG コアと暗号のロジック検証用 |
+| ESP32 (arduino-esp32 3.3) | Wi-Fi / Ethernet | esp-lwip。OS あり、tcpip スレッド、`LWIP_TCPIP_CORE_LOCKING=y`、スレッド安全性チェックあり | `IP_FORWARD` / `IP_NAPT` 有効 |
+| RP2040 / RP2350 (arduino-pico 6.3) | CYW43 Wi-Fi / Ethernet | 本家 lwIP、`NO_SYS=1`。lwIP の API は `--wrap` で再帰ミューテックス(`LWIPMutex`)に包まれる。FreeRTOS モードでは lwIP 専用タスクに要求を投げる方式 | `IP_FORWARD` 無効、NAPT なし |
+| CH32V (ArduinoCore-CH32RV 0.4、Network ライブラリ) | 内蔵 Ethernet / USB NIC(NCM) | lwIP 2.2.1、`NO_SYS=1`、raw API。`yield()` / `delay()` から駆動。lwIP は Network ライブラリに同梱 | `IP_FORWARD` 無効。TRNG は V303/305/307/317、V407/467、H41x のみ(V208 にはない) |
+| host (lang-ship:host) | ループバック | なし(テスト用) | `TinyWGUdp` のみ。WG コアと暗号の検証、Linux カーネル WG との相互接続試験 |
 
 最小対象チップは `TBD(実測)`。
 
@@ -59,9 +59,21 @@ App (MQTT ブローカー/クライアント, CoAP, 任意ソケット)
   - 暗号用乱数(ESP32: `esp_random`、RP2040: ROSC、CH32: TRNG の有無を要調査、他: ユーザ提供)
   - 時刻(`millis()` 相当の単調時刻 + TAI64N 用の壁時計、§4.4)
   - 排他(esp-lwip は tcpip スレッドとの排他、arduino-pico は async_context lock、NO_SYS 環境は不要)
-- **Outer Transport**: 方式は実測で決める
-  - lwIP `udp_pcb` 直: コピー削減・pbuf 直接利用。lwIP 前提なら全ターゲットで可能
-  - Arduino `UDP&`: 移植性は高いがバッファコピーが増える
+- **Outer Transport**: 両方を実装した
+  - `TinyWG`(lwIP アダプタ): lwIP の `udp_pcb` を直接使う。受信は pbuf が連続していればその場で復号する
+  - `TinyWGUdp`: Arduino の `UDP&`。内側は生の IPv4 パケットをコールバックで渡す(IP スタックなし)。host テストと、lwIP を持たないコア向け
+
+### 3.2 実行コンテキストと排他(実装済み)
+
+`TinyWG` では、外側 UDP の受信コールバック、netif の出力、100 ms ごとの lwIP タイマー(`sys_timeout`)のすべてが lwIP のコンテキストで動く。`loop()` から呼ぶ処理はない。スケッチから呼ぶ公開 API(ピアの追加など)は、コアごとの方法で lwIP と排他する。
+
+| コア | 排他の方法 |
+|---|---|
+| ESP32 | `LOCK_TCPIP_CORE()` / `UNLOCK_TCPIP_CORE()`。lwIP のコールバック内から公開 API を呼ぶとデッドロックする |
+| arduino-pico | `LWIPMutex`(lwIP のラッパーと同じ再帰ロック)。FreeRTOS モードはコンパイルエラーにしている(未対応) |
+| CH32V | 不要(lwIP は `yield()` からしか動かない) |
+
+wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がトンネルに入る)場合、ループを防ぐため送信しない(`ip4_route()` で判定)。
 
 ## 4. 機能要件
 
@@ -73,7 +85,7 @@ App (MQTT ブローカー/クライアント, CoAP, 任意ソケット)
 - 鍵更新タイマー(REKEY_AFTER_TIME / REJECT_AFTER_TIME / REKEY_AFTER_MESSAGES / REKEY_TIMEOUT 等)
 - セッションの current / previous / next 切替
 - リプレイ防止スライディングウィンドウ(幅はコンパイル時設定、既定値 `TBD(実測)`)
-- Cookie Reply: 受信・処理は必須、送信(負荷時応答)は任意機能
+- Cookie Reply: 受信・処理は実装済み。送信(負荷時応答)は未実装
 
 ### 4.2 レスポンダ / ゲートウェイ
 
@@ -105,11 +117,25 @@ App (MQTT ブローカー/クライアント, CoAP, 任意ソケット)
 |---|---|
 | メモリ確保 | 動的確保なし、または初期化時のみ。ピア表・セッションは静的確保 |
 | 実行モデル | スレッド非前提。`update()` を `loop()` から呼ぶポーリング型を基本とし、OS ありコアでは Port Layer で排他 |
-| Flash / RAM 目標 | `TBD(実測)`。ターゲットごとに計測し記録する |
-| ハンドシェイク時間 | `TBD(実測)`。特に X25519 の各コアでの所要時間 |
-| スループット | `TBD(実測)` |
+| Flash / RAM | 実測(§5.1)。目標値は実機計測後に決める |
+| ハンドシェイク時間 | `TBD(実測)`。`tests/bench_crypto` で各コアで計測する |
+| スループット | `TBD(実測)`。同上 |
 | 内側 MTU | 設定可能(既定 1420、RAM 削減のため縮小可) |
 | 暗号バックエンド | 既定はポータブル C 実装。HW アクセラレーション(ESP32 等)は任意で差し替え |
+
+### 5.1 フットプリント実測(2026-10-27、ビルドサイズ)
+
+同じ機能のスケッチ(ネットワーク接続 + UDP 送信 + 時刻合わせ)に、TinyWG を足した増分。既定設定(ピア 4、MTU 1420、窓 128 ビット、staged packet あり)。
+
+| ターゲット | Flash | RAM(静的) | 備考 |
+|---|---|---|---|
+| ESP32(Esp32Client) | +25.6 KB | +8.2 KB | |
+| Pico W(PicoWClient) | +22.9 KB | +7.9 KB | |
+| CH32V307(Ch32EthernetClient) | +22.2 KB | +7.9 KB | 全体では Flash 79.3 KB / RAM 45.5 KB(lwIP のプールを含む) |
+
+RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 792 B × 4、送信バッファ 1.47 KB、staged packet 1.42 KB)。これに lwIP アダプタの作業バッファ 1.47 KB が加わる。32 ビットのマイコンではもう少し小さい。
+
+削減の候補(実測を見て判断): staged packet の無効化、ピア数・MTU の縮小、lwIP アダプタの作業バッファと Device の送信バッファの共用、受信 pbuf をそのまま `ip_input` に渡すゼロコピー化。
 
 ## 6. テスト方針
 
@@ -121,6 +147,13 @@ PCMFlowUDP のテスト構成(pytest-embedded + Arduino CLI、`TEST done N/M` �
 - **フットプリント計測**: 各ターゲットのビルドサイズ・RAM・ハンドシェイク時間を記録(release-toolkit の `pre_version_commit` フックで保存)
 
 ## 7. 進め方
+
+進捗(2026-10-27):
+
+- Phase 0: 計測スケッチ(`tests/bench_crypto`)とフットプリントの計測は済み。実機での速度計測は未実施
+- Phase 1: 済み。host 上でペア試験と Linux カーネル WireGuard との相互接続試験(イニシエータ / レスポンダ両方)が通っている
+- Phase 2〜3: ESP32、arduino-pico(RP2040 / RP2350)、CH32V307 でビルドが通る。実機での確認は未実施
+- Phase 4: ESP32 の NAPT 連携(`enableNapt()`)はビルドのみ。MQTT ブローカーの例は未着手
 
 1. **Phase 0 — 実測**: 暗号プリミティブ単体を各ターゲットでビルドし、Flash/RAM・X25519 時間・ChaChaPoly スループットを計測。外側 UDP 方式(`udp_pcb` 直 / Arduino `UDP&`)の比較
 2. **Phase 1 — WG Core**: host 上でハンドシェイク・セッション・タイマーを実装し、Python ピアと相互接続

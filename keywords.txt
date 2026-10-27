@@ -1,0 +1,16 @@
+TinyWG	KEYWORD1
+TinyWGUdp	KEYWORD1
+TinyWGBase	KEYWORD1
+addPeer	KEYWORD2
+removePeer	KEYWORD2
+addAllowedIp	KEYWORD2
+setEndpoint	KEYWORD2
+setPersistentKeepalive	KEYWORD2
+connect	KEYWORD2
+peerUp	KEYWORD2
+peerStatus	KEYWORD2
+publicKey	KEYWORD2
+enableNapt	KEYWORD2
+onPacket	KEYWORD2
+setRandom	KEYWORD2
+setWallClock	KEYWORD2
