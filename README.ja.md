@@ -15,6 +15,22 @@ Arduino 向けの、コアに依存しない WireGuard 実装です。**イニ�
 - **軽い暗号化として選ぶ**: TLS が載るマイコンでも、鍵の交換が 1 往復で済み、Flash と RAM も小さい WireGuard を選ぶ
 - **TLS が重い、または載らないマイコンで**: 暗号化された経路をつくる
 
+## ドキュメント
+
+- [初心者ガイド](docs/guide-beginner.ja.md): ESP32 と Linux の PC をつなぐところまで、鍵の作り方から順に説明します
+- [上級者ガイド](docs/guide-advanced.ja.md): 構成、排他、ルーティングと NAPT、鍵と時刻の管理、MTU とメモリ、タイマー、診断、`TinyWGUdp` / `tinywg::Device` の使い方
+- [仕様書](SPEC.ja.md): 設計と実機での計測値
+- [テスト](tests/README.ja.md): テストの一覧と動かし方
+
+## サンプル
+
+| サンプル | 内容 |
+|---|---|
+| `Esp32Client` | ESP32 から WireGuard サーバーに接続し、トンネル越しに 5 秒ごとに UDP を送る |
+| `Esp32Server` | ESP32 を 2 ピア向けの WireGuard サーバーにし、トンネル越しにだけ届く TCP エコーサーバーを動かす |
+| `Ch32EthernetClient` | CH32V(Ethernet)から接続する。内容は `Esp32Client` と同じ |
+| `PicoWClient` | Pico W / Pico 2 W から接続する。内容は `Esp32Client` と同じ |
+
 ## 対応状況
 
 | コア | `TinyWG` (lwIP) | `TinyWGUdp` | 乱数源 | 確認状況 |

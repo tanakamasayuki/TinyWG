@@ -15,6 +15,22 @@ Some uses:
 - **A lighter encryption by choice**: even where TLS fits, WireGuard needs a single round trip for its key exchange and less flash and RAM.
 - **Where TLS is too heavy or not available**: an encrypted path for the smallest microcontrollers.
 
+## Documentation
+
+- [Beginner's guide](docs/guide-beginner.md): from making keys to an ESP32 talking to a Linux PC, step by step
+- [Advanced guide](docs/guide-advanced.md): structure, locking, routing and NAPT, keys and time, MTU and memory, timers, diagnosis, `TinyWGUdp` and `tinywg::Device`
+- [Specification](SPEC.ja.md) (Japanese): design and on-board measurements
+- [Tests](tests/README.ja.md) (Japanese): the test suites and how to run them
+
+## Examples
+
+| Example | What it does |
+|---|---|
+| `Esp32Client` | An ESP32 connects to a WireGuard server and sends UDP through the tunnel every 5 s |
+| `Esp32Server` | An ESP32 is a WireGuard server for two peers, with a TCP echo server reachable only through the tunnel |
+| `Ch32EthernetClient` | The same as `Esp32Client` from a CH32V over Ethernet |
+| `PicoWClient` | The same as `Esp32Client` from a Pico W / Pico 2 W |
+
 ## Status
 
 | Core | `TinyWG` (lwIP) | `TinyWGUdp` | Random source | Verified |

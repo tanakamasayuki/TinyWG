@@ -44,8 +44,8 @@
 ### 公開まわり
 - [ ] GitHub への push、リリースワークフロー(`.github/workflows/release.yml`)の確認
 - [ ] `library.json`(PlatformIO)。必要なら
-- [ ] `SPEC.md`(英語版)。今は `SPEC.ja.md` のみ
-- [ ] サンプルごとの README
+- [ ] `SPEC.md`(英語版)。今は `SPEC.ja.md` のみ。利用者向けの説明は `docs/` のガイド(日英)にある
+- [ ] サンプルごとの README(今は README のサンプル一覧とガイドで説明している)
 
 ## 環境メモ
 
