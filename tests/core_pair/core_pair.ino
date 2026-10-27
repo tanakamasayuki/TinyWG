@@ -156,7 +156,8 @@ void setup()
     // Reply from the responder, then replay it.
     size_t n2 = makeIp(pkt2, ipB, ipA, 33);
     EXPECT_TRUE("reply sent", g_dev[1].sendInner(pkt2, n2, g_now) == SendResult::Sent);
-    Datagram copy = g_wire[0];
+    static Datagram copy;   // static: a Datagram is ~1.5 KB, too big for an 8 KB loop stack
+    copy = g_wire[0];
     pump();
     EXPECT_TRUE("reply delivered", g_tr[0].inbox.count == 1 && memcmp(g_tr[0].inbox.last, pkt2, n2) == 0);
     uint32_t replay0 = g_dev[0].stats().rxReplay;
@@ -181,7 +182,7 @@ void setup()
 
     // Out-of-order delivery inside the window is accepted.
     for (int i = 0; i < 3; i++) g_dev[0].sendInner(pkt, n1, g_now);
-    Datagram ooo[3];
+    static Datagram ooo[3];
     memcpy(ooo, g_wire, sizeof(ooo));
     dropWire();
     int before = g_tr[1].inbox.count;

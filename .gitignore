@@ -20,3 +20,4 @@ __pycache__/
 tests/**/build/
 tests/**/output/
 tests/report.html
+.env
