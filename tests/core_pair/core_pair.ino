@@ -38,7 +38,8 @@ struct Datagram {
     uint8_t data[TINYWG_MTU + 64];
 };
 
-static Datagram g_wire[8];
+static constexpr int kWireSlots = 4;
+static Datagram g_wire[kWireSlots];
 static int g_wireCount;
 static uint32_t g_now = 1000;
 
@@ -54,7 +55,7 @@ public:
     Inbox inbox;
     void sendOuter(const Endpoint &to, const uint8_t *data, size_t len) override
     {
-        if (g_wireCount >= 8 || len > sizeof(g_wire[0].data)) return;
+        if (g_wireCount >= kWireSlots || len > sizeof(g_wire[0].data)) return;
         Datagram &d = g_wire[g_wireCount++];
         d.to = to.port == 1 ? 0 : 1;
         d.from = Endpoint{{127, 0, 0, 1}, (uint16_t)(self + 1)};
@@ -78,7 +79,7 @@ static void dropWire() { g_wireCount = 0; }
 static int pump()
 {
     int delivered = 0;
-    static Datagram batch[8];
+    static Datagram batch[kWireSlots];
     while (g_wireCount > 0) {
         int n = g_wireCount;
         memcpy(batch, g_wire, sizeof(Datagram) * n);

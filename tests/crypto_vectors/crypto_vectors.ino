@@ -91,7 +91,8 @@ void setup()
     }
 
     // KDF1..3 with an empty input and a 32-byte input.
-    for (size_t n : {(size_t)0, (size_t)32}) {
+    static const size_t kKdfLens[] = {0, 32};
+    for (size_t n : kKdfLens) {
         uint8_t t1[32], t2[32], t3[32];
         pattern(in, n, 3);
         crypto::kdf(t1, t2, t3, key, in, n);
