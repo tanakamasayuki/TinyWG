@@ -29,17 +29,17 @@ def test_board_pair(dut, peers, record_property):
     password = secrets.token_hex(8)
 
     dut.write(f"CFG {server_priv} {client_pub} {ssid} {password}\n")
-    ap_ip = dut.expect(re.compile(rb"SERVER-READY ap_ip=(\S+)"), timeout=20).group(1).decode()
+    ap_ip = dut.expect(re.compile(rb"SERVER-READY ap_ip=(\S+)\r?\n"), timeout=20).group(1).decode()
 
     client.write(f"CFG {client_priv} {server_pub} {ssid} {password} {ap_ip}\n")
-    m = client.expect(re.compile(rb"CLIENT-READY handshake_ms=(\d+)|CLIENT-ERROR ([^\r\n]+)"), timeout=60)
+    m = client.expect(re.compile(rb"(?:CLIENT-READY handshake_ms=(\d+)|CLIENT-ERROR ([^\r\n]+))\r?\n"), timeout=60)
     assert m.group(1), f"client: {m.group(2).decode()}"
     print(f"  handshake {m.group(1).decode()} ms (client clock, incl. Wi-Fi round trip)")
     record_property("handshake_ms", m.group(1).decode())
 
     for size in (100, 32768):
         client.write(f"RUN {size}\n")
-        m = client.expect(re.compile(rb"TCP-ECHO [^\r\n]+|TCP-ERROR [^\r\n]+"), timeout=60)
+        m = client.expect(re.compile(rb"(?:TCP-ECHO|TCP-ERROR) [^\r\n]+(?=\r?\n)"), timeout=60)
         line = m.group(0).decode()
         print("  " + line)
         assert line.startswith("TCP-ECHO"), line
@@ -48,7 +48,7 @@ def test_board_pair(dut, peers, record_property):
         record_property(f"tcp_echo_{size}", line)
 
     dut.write("STATS\n")
-    stats = dut.expect(re.compile(rb"STATS [^\r\n]+"), timeout=5).group(0).decode()
+    stats = dut.expect(re.compile(rb"STATS [^\r\n]+(?=\r?\n)"), timeout=5).group(0).decode()
     print("  server " + stats)
     fields = dict(kv.split("=") for kv in stats.split()[1:])
     assert fields["replay"] == "0" and fields["decrypt"] == "0" and fields["up"] == "1", stats

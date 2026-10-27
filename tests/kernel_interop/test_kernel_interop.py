@@ -47,7 +47,7 @@ def configure(dut, kernel, peer_port, psk=None, dut_psk=None):
     if dut_psk:
         line += f" {dut_psk}"
     dut.write(line + "\n")
-    m = dut.expect(re.compile(rb"DUT-READY peer=(\d+) pub=(\S+)"), timeout=10)
+    m = dut.expect(re.compile(rb"DUT-READY peer=(\d+) pub=(\S+)\r?\n"), timeout=10)
     assert m.group(2).decode() == pub
 
 
@@ -139,7 +139,7 @@ def burst(dut, kernel):
                 time.sleep(0.02)
         reader.join(timeout=10)
     dut.write("STATS\n")
-    m = dut.expect(re.compile(rb"STATS .*replay=(\d+) decrypt=(\d+)"), timeout=5)
+    m = dut.expect(re.compile(rb"STATS .*replay=(\d+) decrypt=(\d+)\s"), timeout=5)
     print(f"  burst: {len(got)}/{sent} echoes, {m.group(0).decode()}")
     assert int(m.group(1)) == 0 and int(m.group(2)) == 0, m.group(0)
     assert len(got) == sent, f"{len(got)}/{sent} echoes"

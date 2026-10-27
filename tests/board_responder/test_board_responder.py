@@ -29,7 +29,7 @@ def start(dut, psk=None):
     pc_priv, pc_pub = keypair()
     line = f"CFG {board_priv} {pc_pub}" + (f" {psk}" if psk else "")
     dut.write(line + "\n")
-    m = dut.expect(re.compile(rb"DUT-READY ip=(\S+) port=(\d+) peer=(\d+)"), timeout=20)
+    m = dut.expect(re.compile(rb"DUT-READY ip=(\S+) port=(\d+) peer=(\d+)\r?\n"), timeout=20)
     endpoint = (m.group(1).decode(), int(m.group(2)))
     return WgPeer(base64.b64decode(pc_priv), base64.b64decode(board_pub), endpoint,
                   psk=base64.b64decode(psk) if psk else b"\0" * 32)
@@ -50,14 +50,14 @@ def udp_echo(peer, payload, sport=40000):
 
 def stats(dut):
     dut.write("STATS\n")
-    m = dut.expect(re.compile(rb"STATS [^\r\n]+"), timeout=5)
+    m = dut.expect(re.compile(rb"STATS [^\r\n]+(?=\r?\n)"), timeout=5)
     line = m.group(0).decode()
     print("  " + line)
     return dict(kv.split("=") for kv in line.split()[1:])
 
 
 def test_board_responder(dut, record_property):
-    m = dut.expect(re.compile(rb"WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+)"), timeout=150)
+    m = dut.expect(re.compile(rb"(?:WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+))\r?\n"), timeout=150)
     assert m.group(1), f"Wi-Fi: {m.group(2).decode()}"
     dut.expect("DUT-WAIT-CONFIG", timeout=10)
 
