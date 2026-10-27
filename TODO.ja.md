@@ -15,15 +15,15 @@
 | Python 製 WireGuard ピア(`tests/helpers/wg_peer.py`) | カーネル WireGuard と突き合わせて、イニシエータ / レスポンダの両方で正しいことを確認済み |
 | ESP32(D0WD-V3) / ESP32-S3 | `crypto_vectors` / `core_pair` / `bench_crypto` / `board_pair` / `board_responder` 通過 |
 | ESP32 ↔ ESP32-S3(`board_pair`) | SoftAP 上で TCP 32 KB をトンネル越しに往復。ハンドシェイク 135〜171 ms、約 376〜416 KiB/s、エラーなし |
-| PC → ESP32 / ESP32-S3(`board_responder`) | 家庭用 AP 経由(ネイティブ Linux)。ハンドシェイク往復 94 / 100 ms、ping 約 3 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
+| PC → ESP32 / ESP32-S3 / CH32V307(`board_responder`) | ESP32 系は家庭用 AP 経由、CH32V307 は Ethernet。ハンドシェイク往復 94 / 100 / 106 ms、ping 約 3 / 3 / 1 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
 | arduino-pico 6.3.1(Pico W / Pico 2 W) | ビルドのみ |
-| CH32V307(ArduinoCore-CH32RV 0.4.0、96 MHz) | 実機で `smoke` / `crypto_vectors` / `core_pair` / `bench_crypto` 通過(X25519 24 ms、レスポンダのハンドシェイク処理 103 ms)。Ethernet 越しの接続は未確認 |
+| CH32V307(ArduinoCore-CH32RV 0.4.0、96 MHz) | 実機で `smoke` / `crypto_vectors` / `core_pair` / `bench_crypto` / `board_responder`(Ethernet)通過(X25519 24 ms、レスポンダのハンドシェイク処理 103 ms) |
 
 ## 残っている作業
 
 ### 実機確認
 - [ ] Pico W / Pico 2 W の実機で、`bench_crypto` と `PicoWClient` を動かす。lwIP のロック(`LWIPMutex`)が実機で問題ないか確かめる
-- [ ] CH32V307 の実機で `Ch32EthernetClient` を動かす(LAN ケーブルが必要)。`yield()` 駆動の lwIP タイマー、Ethernet の pbuf の扱いを確認する。PC 側は `tests/helpers/wg_peer.py` で受けられるので、`board_responder` と同じ形のテストにできる
+- [ ] CH32V307 の長時間試験(`yield()` 駆動の lwIP タイマーで、keepalive と鍵の更新が回るか)
 - [ ] ESP32 の `enableNapt()` を実機で確かめる(ピアから LAN / インターネットへ中継)
 - [ ] 長時間の試験: 鍵の更新(120 秒ごと)、keepalive、鍵のゼロ化(540 秒)、Wi-Fi 切断からの復帰
 
@@ -59,12 +59,14 @@
 - **host の DUT の制約**: Serial の接続は 1 プロセス 1 回だけ。そのため、host 向けのテストは 1 モジュール 1 テスト関数にしている(`kernel_interop` はシナリオを内部でループする)
 - **ESP32 の loopTask のスタック**: 8 KB。テストスケッチで大きなバッファをスタックに置かないこと(`core_pair` で一度落ちた)
 - **CH32 の参照先**: `~/dev_wch/ArduinoCore-CH32RV`。lwIP の設定は `libraries/Network/src/lwipopts.h`、TRNG は `cores/arduino/ch32rv_rng.h`
+- **CH32 の実機を使うとき**: ch32rv のセッション(ArduinoCore-CH32RV)に先に声をかける。使う間は `flock /home/mt/dev_oep/oep-bench/locks/bench.lock <コマンド>` でベンチ共通のロックを取り、始める前と終わった後に、ほかのセッション(dev_oep の "[oep]" など)へ知らせる。ほかのボードの probe や電源には触らない。ESP32 はほかに使う人がいない
 - **シリアルポート**: 今の PC では `/run/board-identify/by-id/<チップ>-<ID>` が固定名で使える(`ttyUSB*` / `ttyACM*` の番号は変わる)。`.env` もこの名前で書いている。CH32 は WCH-Link 経由で書き込み、同じポートで Serial が読める
 - **実行例**
   ```sh
   cd tests
   uv run --env-file .env pytest board_responder -s                  # 既定は esp32
   uv run --env-file .env pytest board_responder --profile esp32s3 -s
+  uv run --env-file .env pytest board_responder --profile ch32v307 -s   # Ethernet
   uv run --env-file .env pytest bench_crypto --profile ch32v307 -s
   uv run --env-file .env pytest board_pair --profile esp32 --peer-profile client:esp32s3 -s
   ```

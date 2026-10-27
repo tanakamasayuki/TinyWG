@@ -1,17 +1,27 @@
-// On-board test: TinyWG as an lwIP interface (wg0 = 10.9.0.2/24) on Wi-Fi,
-// reached from the PC by the Python WireGuard peer (helpers/wg_peer.py).
-// Inside the tunnel lwIP answers ping by itself, and a WiFiUDP socket on
-// port 7 echoes datagrams: the whole path through lwIP's sockets is used.
+// On-board test: TinyWG as an lwIP interface (wg0 = 10.9.0.2/24) on Wi-Fi
+// (ESP32) or Ethernet (CH32V307), reached from the PC by the Python
+// WireGuard peer (helpers/wg_peer.py). Inside the tunnel lwIP answers ping
+// by itself, and a UDP socket on port 7 echoes datagrams: the whole path
+// through lwIP's sockets is used.
 //
 // Wi-Fi comes from tests/.env (TEST_WIFI_SSID / TEST_WIFI_PASSWORD via build_config.toml).
+// The board prints NET_OK <ip> (or NET_ERROR <why>) once the network is up.
 // Serial commands (one line each):
 //   CFG <private> <peer public> [<psk>]   start wg0 with these keys (repeatable)
 //   CONNECT                               start a handshake from the board
 //   STATS                                 print the drop counters
 
+#if defined(ARDUINO_ARCH_ESP32)
 #include <WiFi.h>
 #include <WiFiUdp.h>
+typedef WiFiUDP EchoUDP;
+#else
+#include <Network.h>
+typedef NetworkUDP EchoUDP;
+#endif
 #include <TinyWG.h>
+#include <stdarg.h>
+#include <stdio.h>
 #include <string.h>
 
 #ifndef WIFI_SSID
@@ -20,9 +30,38 @@
 #endif
 
 static TinyWG wg;
-static WiFiUDP echo;
+static EchoUDP echo;
 static int peer = -1;
 static uint8_t buf[1500];
+
+// Not every core has Serial.printf, and newlib-nano has no %llu.
+static void out(const char *fmt, ...)
+{
+    char line[200];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(line, sizeof(line), fmt, ap);
+    va_end(ap);
+    Serial.print(line);
+}
+
+static unsigned freeHeap()
+{
+#if defined(ARDUINO_ARCH_ESP32)
+    return ESP.getFreeHeap();
+#else
+    return 0;
+#endif
+}
+
+static IPAddress localIP()
+{
+#if defined(ARDUINO_ARCH_ESP32)
+    return WiFi.localIP();
+#else
+    return ETH.localIP();
+#endif
+}
 
 static void configure(char *line)
 {
@@ -40,10 +79,10 @@ static void configure(char *line)
     }
     peer = wg.addPeer(argv[2], argc > 3 ? argv[3] : nullptr);
     wg.addAllowedIp(peer, IPAddress(10, 9, 0, 1), 32);
-    Serial.printf("DUT-SETUP %lu us\n", (unsigned long)(micros() - t));
+    out("DUT-SETUP %lu us\n", (unsigned long)(micros() - t));
     Serial.print("DUT-READY ip=");
-    Serial.print(WiFi.localIP());
-    Serial.printf(" port=51820 peer=%d\n", peer);
+    Serial.print(localIP());
+    out(" port=51820 peer=%d\n", peer);
 }
 
 static void command(char *line)
@@ -51,51 +90,69 @@ static void command(char *line)
     if (strncmp(line, "CFG ", 4) == 0) {
         configure(line);
     } else if (strcmp(line, "CONNECT") == 0) {
-        Serial.printf("CONNECT %d\n", wg.connect(peer) ? 1 : 0);
+        out("CONNECT %d\n", wg.connect(peer) ? 1 : 0);
     } else if (strcmp(line, "STATS") == 0) {
         tinywg::Stats s = wg.stats();
         tinywg::PeerStatus p;
         wg.peerStatus(peer, &p);
-        Serial.printf("STATS init=%u done=%u resp=%u badmac=%u hsfail=%u unknown=%u replay=%u decrypt=%u "
-                      "notallowed=%u up=%d rx=%llu tx=%llu heap=%u\n",
+        out("STATS init=%u done=%u resp=%u badmac=%u hsfail=%u unknown=%u replay=%u decrypt=%u "
+                      "notallowed=%u up=%d rx=%lu tx=%lu heap=%u\n",
                       (unsigned)s.handshakesInitiated, (unsigned)s.handshakesCompleted,
                       (unsigned)s.handshakesResponded, (unsigned)s.rxBadMac1, (unsigned)s.rxHandshakeFail,
                       (unsigned)s.rxUnknownPeer, (unsigned)s.rxReplay, (unsigned)s.rxDecryptFail,
-                      (unsigned)s.rxNotAllowed, p.sessionUp ? 1 : 0, (unsigned long long)p.rxBytes,
-                      (unsigned long long)p.txBytes, (unsigned)ESP.getFreeHeap());
+                      (unsigned)s.rxNotAllowed, p.sessionUp ? 1 : 0, (unsigned long)p.rxBytes,
+                      (unsigned long)p.txBytes, freeHeap());
     }
 }
 
-void setup()
+#if defined(ARDUINO_ARCH_ESP32)
+static bool networkUp()
 {
-    Serial.begin(115200);
-    delay(5000);
     if (strlen(WIFI_SSID) == 0) {
-        Serial.println("WIFI_ERROR missing_ssid (set TEST_WIFI_SSID in tests/.env)");
-        return;
+        Serial.println("NET_ERROR missing_ssid (set TEST_WIFI_SSID in tests/.env)");
+        return false;
     }
     WiFi.onEvent([](WiFiEvent_t, WiFiEventInfo_t info) {
-        Serial.printf("WIFI_DISCONNECT reason=%d\n", (int)info.wifi_sta_disconnected.reason);
+        out("WIFI_DISCONNECT reason=%d\n", (int)info.wifi_sta_disconnected.reason);
     }, ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     for (uint32_t start = millis(); WiFi.status() != WL_CONNECTED && millis() - start < 120000;) delay(250);
-    if (WiFi.status() != WL_CONNECTED) {
-        // Say whether the AP is visible at all (ESP32 sees 2.4 GHz only).
-        WiFi.disconnect();
-        delay(200);
-        int n = WiFi.scanNetworks();
-        for (int i = 0; i < n; i++) {
-            if (WiFi.SSID(i) == WIFI_SSID) {
-                Serial.printf("WIFI_SCAN found rssi=%d channel=%d auth=%d\n", (int)WiFi.RSSI(i), (int)WiFi.channel(i), (int)WiFi.encryptionType(i));
-            }
+    if (WiFi.status() == WL_CONNECTED) return true;
+    // Say whether the AP is visible at all (ESP32 sees 2.4 GHz only).
+    WiFi.disconnect();
+    delay(200);
+    int n = WiFi.scanNetworks();
+    for (int i = 0; i < n; i++) {
+        if (WiFi.SSID(i) == WIFI_SSID) {
+            out("WIFI_SCAN found rssi=%d channel=%d auth=%d\n", (int)WiFi.RSSI(i), (int)WiFi.channel(i), (int)WiFi.encryptionType(i));
         }
-        Serial.printf("WIFI_ERROR connect_failed status=%d visible_networks=%d\n", (int)WiFi.status(), n);
-        return;
     }
-    Serial.print("WIFI_OK ");
-    Serial.println(WiFi.localIP());
+    out("NET_ERROR wifi_connect_failed status=%d visible_networks=%d\n", (int)WiFi.status(), n);
+    return false;
+}
+#else
+static bool networkUp()
+{
+    if (!ETH.begin()) {
+        Serial.println("NET_ERROR eth_begin");
+        return false;
+    }
+    for (uint32_t start = millis(); !ETH.hasIP() && millis() - start < 30000;) delay(100);
+    if (ETH.hasIP()) return true;
+    out("NET_ERROR eth_no_ip link=%d\n", ETH.linkUp() ? 1 : 0);
+    return false;
+}
+#endif
+
+void setup()
+{
+    Serial.begin(115200);
+    delay(5000);
+    if (!networkUp()) return;
+    Serial.print("NET_OK ");
+    Serial.println(localIP());
     echo.begin(7);
     Serial.println("DUT-WAIT-CONFIG");
 }

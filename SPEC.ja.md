@@ -151,7 +151,7 @@ RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 79
 
 実機 2 台(`tests/board_pair`、ESP32 が SoftAP + サーバー、S3 がクライアント): ハンドシェイク 171 ms(Wi-Fi の往復込み)、トンネル越しの TCP echo 32 KB を往復合計 約 376 KiB/s、エラーなし。
 
-PC → ボード(`tests/board_responder`、家庭用 AP 経由、PC の Python ピアが開始): ハンドシェイク往復 ESP32 94 ms / S3 100 ms、トンネル越しの ping 約 3 ms、200 B の UDP echo 100 往復(往復合計 ESP32 約 61 KiB/s、S3 約 69 KiB/s。1 往復ずつ待つため Wi-Fi の遅延律速)、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否まで通過。CH32V307 は `crypto_vectors` / `core_pair` / `smoke` も実機で通過(ネットワーク接続の確認は未実施)。Pico W の実機計測は未実施。
+PC → ボード(`tests/board_responder`、家庭用 AP 経由、PC の Python ピアが開始): ハンドシェイク往復 ESP32 94 ms / S3 100 ms、トンネル越しの ping 約 3 ms、200 B の UDP echo 100 往復(往復合計 ESP32 約 61 KiB/s、S3 約 69 KiB/s。1 往復ずつ待つため Wi-Fi の遅延律速)、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否まで通過。CH32V307 も Ethernet で同じ試験に通過(ハンドシェイク往復 106 ms、ping 約 1 ms、UDP echo 100 往復で往復合計 約 158 KiB/s)。`crypto_vectors` / `core_pair` / `smoke` も実機で通過。Pico W の実機計測は未実施。
 
 ## 6. テスト方針
 
@@ -169,7 +169,7 @@ PCMFlowUDP のテスト構成(pytest-embedded + Arduino CLI、`TEST done N/M` �
 - Phase 0: 済み。フットプリントと、ESP32 / ESP32-S3 / CH32V307 の実機での速度計測(Pico W は未実施)
 - Phase 1: 済み。host 上でペア試験と Linux カーネル WireGuard との相互接続試験(イニシエータ / レスポンダ両方)が通っている
 - Phase 2: ESP32 / ESP32-S3 の実機で動作確認済み(単体テスト、計測、ボード 2 台での TCP、PC からボードへの接続試験 `board_responder`)
-- Phase 3: CH32V307 は実機で単体テストと計測が通過。Ethernet 越しの接続は未確認。arduino-pico(RP2040 / RP2350)はビルドのみ
+- Phase 3: CH32V307 は実機で単体テスト、計測、Ethernet 越しの `board_responder` が通過。arduino-pico(RP2040 / RP2350)はビルドのみ
 - Phase 4: ESP32 の NAPT 連携(`enableNapt()`)はビルドのみ。MQTT ブローカーの例は未着手
 
 1. **Phase 0 — 実測**: 暗号プリミティブ単体を各ターゲットでビルドし、Flash/RAM・X25519 時間・ChaChaPoly スループットを計測。外側 UDP 方式(`udp_pcb` 直 / Arduino `UDP&`)の比較

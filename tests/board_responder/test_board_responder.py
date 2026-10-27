@@ -1,4 +1,4 @@
-"""A board running TinyWG (lwIP wg0) on Wi-Fi, reached from the PC.
+"""A board running TinyWG (lwIP wg0) on Wi-Fi or Ethernet, reached from the PC.
 
 The PC side is the Python WireGuard peer (helpers/wg_peer.py, itself checked
 against the Linux kernel in pypeer_selftest/). The PC initiates, because it may
@@ -6,6 +6,7 @@ sit behind NAT (WSL2) where the board cannot reach it first; once the board
 knows the PC's endpoint it also initiates a handshake of its own.
 
     uv run --env-file .env pytest board_responder --profile esp32 -s
+    uv run --env-file .env pytest board_responder --profile ch32v307 -s   # Ethernet
 """
 
 import base64
@@ -57,8 +58,8 @@ def stats(dut):
 
 
 def test_board_responder(dut, record_property):
-    m = dut.expect(re.compile(rb"(?:WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+))\r?\n"), timeout=150)
-    assert m.group(1), f"Wi-Fi: {m.group(2).decode()}"
+    m = dut.expect(re.compile(rb"(?:NET_OK (\S+)|NET_ERROR ([^\r\n]+))\r?\n"), timeout=150)
+    assert m.group(1), f"network: {m.group(2).decode()}"
     dut.expect("DUT-WAIT-CONFIG", timeout=10)
 
     peer = start(dut)

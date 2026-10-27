@@ -18,7 +18,7 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 | `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信 | host のみ |
 | `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / esp32s3 / ch32v307 / picow |
 | `pypeer_selftest/` | 実機テストで PC 側に使う Python 製 WireGuard ピア(`helpers/wg_peer.py`)を、カーネル WireGuard と突き合わせて検証(イニシエータ / レスポンダ、PSK あり) | PC のみ(スケッチなし) |
-| `board_responder/` | 実機が Wi-Fi で TinyWG(lwIP の wg0)を動かし、PC の Python ピアから接続。ping(lwIP が応答)、WiFiUDP の echo(1392 B まで)、100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 | esp32 / esp32s3(要 `.env` の Wi-Fi) |
+| `board_responder/` | 実機が Wi-Fi(ESP32)または Ethernet(CH32V307)で TinyWG(lwIP の wg0)を動かし、PC の Python ピアから接続。ping(lwIP が応答)、UDP の echo(1392 B まで)、100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 | esp32 / esp32s3(要 `.env` の Wi-Fi)/ ch32v307(要 LAN ケーブル) |
 | `board_pair/` | 実機 2 台。主 DUT が SoftAP を立てて WireGuard サーバー、`peer_client/` が接続してクライアント。トンネル越しの TCP echo(32 KB) | esp32 + esp32s3(外部 AP 不要) |
 
 ## kernel_interop の仕組み
@@ -37,6 +37,7 @@ host の DUT は Serial の接続を 1 回しか受け付けません。その�
 ```sh
 uv run --env-file .env pytest crypto_vectors core_pair bench_crypto --profile esp32 -s
 uv run --env-file .env pytest board_responder --profile esp32 -s
+uv run --env-file .env pytest board_responder --profile ch32v307 -s
 uv run --env-file .env pytest board_pair --profile esp32 --peer-profile client:esp32s3 -s
 ```
 
