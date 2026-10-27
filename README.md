@@ -9,7 +9,11 @@ A portable WireGuard implementation for Arduino. It works as **both initiator (c
 - `TinyWGUdp` runs over any Arduino `UDP`; the sketch handles the inner IPv4 packets itself.
 - Interoperability with the Linux kernel WireGuard is covered by automated tests.
 
-It is meant for microcontrollers where TLS is too heavy or not available: a WireGuard tunnel needs less flash and RAM than TLS.
+Some uses:
+
+- **Plain WireGuard**: put a microcontroller on an existing WireGuard network (a Linux server, the official apps on PCs and phones), or run a WireGuard server on it to reach it from outside.
+- **A lighter encryption by choice**: even where TLS fits, WireGuard needs a single round trip for its key exchange and less flash and RAM.
+- **Where TLS is too heavy or not available**: an encrypted path for the smallest microcontrollers.
 
 ## Status
 
