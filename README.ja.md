@@ -26,10 +26,10 @@ Arduino 向けの、コアに依存しない WireGuard 実装です。**イニ�
 
 | サンプル | 内容 |
 |---|---|
-| `Esp32Client` | ESP32 から WireGuard サーバーに接続し、トンネル越しに 5 秒ごとに UDP を送る |
-| `Esp32Server` | ESP32 を 2 ピア向けの WireGuard サーバーにし、トンネル越しにだけ届く TCP エコーサーバーを動かす |
-| `Ch32EthernetClient` | CH32V(Ethernet)から接続する。内容は `Esp32Client` と同じ |
-| `PicoWClient` | Pico W / Pico 2 W から接続する。内容は `Esp32Client` と同じ |
+| [`Esp32Client`](examples/Esp32Client/README.ja.md) | ESP32 から WireGuard サーバーに接続し、トンネル越しに 5 秒ごとに UDP を送る |
+| [`Esp32Server`](examples/Esp32Server/README.ja.md) | ESP32 を 2 ピア向けの WireGuard サーバーにし、トンネル越しにだけ届く TCP エコーサーバーを動かす |
+| [`Ch32EthernetClient`](examples/Ch32EthernetClient/README.ja.md) | CH32V(Ethernet)から接続する。内容は `Esp32Client` と同じ |
+| [`PicoWClient`](examples/PicoWClient/README.ja.md) | Pico W / Pico 2 W から接続する。内容は `Esp32Client` と同じ |
 
 ## 対応状況
 

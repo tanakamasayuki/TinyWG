@@ -44,7 +44,6 @@
 ### 公開まわり
 - [ ] GitHub への push、リリースワークフロー(`.github/workflows/release.yml`)の確認
 - [ ] `library.json`(PlatformIO)。必要なら
-- [ ] サンプルごとの README(今は README のサンプル一覧とガイドで説明している)
 
 ## 環境メモ
 

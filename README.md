@@ -26,10 +26,10 @@ Some uses:
 
 | Example | What it does |
 |---|---|
-| `Esp32Client` | An ESP32 connects to a WireGuard server and sends UDP through the tunnel every 5 s |
-| `Esp32Server` | An ESP32 is a WireGuard server for two peers, with a TCP echo server reachable only through the tunnel |
-| `Ch32EthernetClient` | The same as `Esp32Client` from a CH32V over Ethernet |
-| `PicoWClient` | The same as `Esp32Client` from a Pico W / Pico 2 W |
+| [`Esp32Client`](examples/Esp32Client/README.md) | An ESP32 connects to a WireGuard server and sends UDP through the tunnel every 5 s |
+| [`Esp32Server`](examples/Esp32Server/README.md) | An ESP32 is a WireGuard server for two peers, with a TCP echo server reachable only through the tunnel |
+| [`Ch32EthernetClient`](examples/Ch32EthernetClient/README.md) | The same as `Esp32Client` from a CH32V over Ethernet |
+| [`PicoWClient`](examples/PicoWClient/README.md) | The same as `Esp32Client` from a Pico W / Pico 2 W |
 
 ## Status
 

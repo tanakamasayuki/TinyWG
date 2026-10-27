@@ -5,3 +5,5 @@
 - (JA) 初期実装: WireGuard プロトコルエンジン(イニシエータ / レスポンダ、複数ピア)、lwIP netif アダプタ(TinyWG)、Arduino UDP アダプタ(TinyWGUdp)。
 - (EN) Beginner's and advanced guides (docs/), in English and Japanese.
 - (JA) 初心者ガイドと上級者ガイド(docs/、日英)。
+- (EN) SPEC.md in English; a README for each example.
+- (JA) 英語版の SPEC.md、サンプルごとの README。
