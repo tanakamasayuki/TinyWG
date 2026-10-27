@@ -15,3 +15,8 @@ __pycache__/
 *.pyc
 .pytest*/
 .env
+
+# Test build output
+tests/**/build/
+tests/**/output/
+tests/report.html
