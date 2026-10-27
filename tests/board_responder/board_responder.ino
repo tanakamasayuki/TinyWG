@@ -80,7 +80,7 @@ void setup()
     WiFi.mode(WIFI_STA);
     WiFi.setSleep(false);
     WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    for (uint32_t start = millis(); WiFi.status() != WL_CONNECTED && millis() - start < 30000;) delay(250);
+    for (uint32_t start = millis(); WiFi.status() != WL_CONNECTED && millis() - start < 120000;) delay(250);
     if (WiFi.status() != WL_CONNECTED) {
         // Say whether the AP is visible at all (ESP32 sees 2.4 GHz only).
         WiFi.disconnect();
@@ -88,7 +88,7 @@ void setup()
         int n = WiFi.scanNetworks();
         for (int i = 0; i < n; i++) {
             if (WiFi.SSID(i) == WIFI_SSID) {
-                Serial.printf("WIFI_SCAN found rssi=%d channel=%d\n", (int)WiFi.RSSI(i), (int)WiFi.channel(i));
+                Serial.printf("WIFI_SCAN found rssi=%d channel=%d auth=%d\n", (int)WiFi.RSSI(i), (int)WiFi.channel(i), (int)WiFi.encryptionType(i));
             }
         }
         Serial.printf("WIFI_ERROR connect_failed status=%d visible_networks=%d\n", (int)WiFi.status(), n);

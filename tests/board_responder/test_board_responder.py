@@ -57,7 +57,7 @@ def stats(dut):
 
 
 def test_board_responder(dut, record_property):
-    m = dut.expect(re.compile(rb"WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+)"), timeout=60)
+    m = dut.expect(re.compile(rb"WIFI_OK (\S+)|WIFI_ERROR ([^\r\n]+)"), timeout=150)
     assert m.group(1), f"Wi-Fi: {m.group(2).decode()}"
     dut.expect("DUT-WAIT-CONFIG", timeout=10)
 
