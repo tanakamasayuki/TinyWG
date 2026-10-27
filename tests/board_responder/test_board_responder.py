@@ -80,6 +80,30 @@ def gateway():
         return None
 
 
+def mtu(dut, peer):
+    """A smaller MTU set at run time: lwIP splits a reply that no longer fits."""
+    dut.write("MTU 1000\n")
+    dut.expect(re.compile(rb"MTU 1 1000\r?\n"), timeout=5)
+    try:
+        assert udp_echo(peer, bytes(972)) == bytes(972)   # 1000-byte IP packet: still whole
+        payload = bytes(range(256)) * 5 + bytes(range(112))   # 1392 bytes
+        peer.send_ip(udp(PC, BOARD, 40002, 7, payload))
+        frags = []
+        while len(frags) < 2:
+            p = peer.recv_ip()
+            assert p is not None, f"reply fragments: got {len(frags)}"
+            frags.append(p)
+        assert all(len(f) <= 1000 for f in frags), [len(f) for f in frags]
+        offsets = sorted(struct.unpack_from("!H", f, 6)[0] & 0x1FFF for f in frags)
+        assert offsets[0] == 0 and offsets[1] > 0, offsets
+        whole = b"".join(f[20:] for f in sorted(frags, key=lambda f: struct.unpack_from("!H", f, 6)[0] & 0x1FFF))
+        assert whole[8:] == payload
+        print(f"  MTU 1000: the 1392-byte echo came back in fragments of {[len(f) for f in frags]} bytes")
+    finally:
+        dut.write("MTU 1420\n")
+        dut.expect(re.compile(rb"MTU 1 1420\r?\n"), timeout=5)
+
+
 def napt(dut, peer, record_property):
     """ESP32 only: the peer reaches the LAN through the board's NAPT.
 
@@ -159,6 +183,7 @@ def test_board_responder(dut, record_property):
         assert peer.session.recv_key != old, "board-initiated handshake not seen"
         assert udp_echo(peer, b"after-rekey") == b"after-rekey"
 
+        mtu(dut, peer)
         napt(dut, peer, record_property)
 
         s = stats(dut)

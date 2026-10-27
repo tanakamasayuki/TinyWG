@@ -71,6 +71,16 @@ wg.addAllowedIp(b, IPAddress(10, 9, 0, 3), 32);
 
 鍵は `wg genkey` / `wg pubkey` で作れます。
 
+## MTU
+
+トンネル内の MTU は既定で 1420 です。外側の経路が 1500 より小さいとき(PPPoE、LTE、別のトンネルの中など)は、実行時に下げられます。`begin()` の前でも後でも構いません。外側の経路には「MTU + 60 バイト」が通る必要があります。
+
+```cpp
+wg.setMtu(1280);   // 576 〜 TINYWG_MTU。lwIP の wg0 の MTU も変わり、TCP のセグメントもこれに合わせて小さくなる
+```
+
+`TINYWG_MTU` はバッファの大きさを決める上限です。大きな MTU を使わないなら、これも下げると RAM が減ります。
+
 ## 時刻
 
 イニシエータが送るハンドシェイクには時刻(TAI64N)が入り、受け手は前回より新しいものしか受け付けません。RTC のないボードで再起動後に時刻が戻ると、相手側(Linux など)に拒否されます。**クライアントとして使うときは、`begin()` の前に NTP で時刻を合わせてください。** レスポンダとしてだけ使う場合は時刻は不要です。`setWallClock()` で時刻の取得方法を差し替えられます。
@@ -83,7 +93,7 @@ wg.addAllowedIp(b, IPAddress(10, 9, 0, 3), 32);
 |---|---|---|
 | `TINYWG_MAX_PEERS` | 4 | ピア数 |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | ピアごとの AllowedIPs の数 |
-| `TINYWG_MTU` | 1420 | トンネル内の MTU |
+| `TINYWG_MTU` | 1420 | トンネル内の MTU の上限(バッファの大きさ)。使う MTU は `setMtu()` で実行時に下げられる |
 | `TINYWG_REPLAY_WINDOW` | 128 | リプレイ防止の窓(ビット) |
 | `TINYWG_STAGED_PACKET` | 1 | ハンドシェイク中の 1 パケットを保持する |
 

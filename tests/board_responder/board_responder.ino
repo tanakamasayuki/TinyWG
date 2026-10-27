@@ -10,6 +10,7 @@
 //   CFG <private> <peer public> [<psk>]   start wg0 with these keys (repeatable)
 //   CONNECT                               start a handshake from the board
 //   KEEPALIVE <seconds>                   persistent keepalive (0 = off)
+//   MTU <bytes>                           wg0's MTU at run time
 //   NAPT                                  route the peer to the LAN through NAPT (ESP32)
 //   STATS                                 print the drop counters
 
@@ -96,6 +97,8 @@ static void command(char *line)
         out("CONNECT %d\n", wg.connect(peer) ? 1 : 0);
     } else if (strncmp(line, "KEEPALIVE ", 10) == 0) {
         out("KEEPALIVE %d\n", wg.setPersistentKeepalive(peer, (uint16_t)atoi(line + 10)) ? 1 : 0);
+    } else if (strncmp(line, "MTU ", 4) == 0) {
+        out("MTU %d %u\n", wg.setMtu((uint16_t)atoi(line + 4)) ? 1 : 0, (unsigned)wg.mtu());
     } else if (strcmp(line, "NAPT") == 0) {
 #if defined(IP_NAPT) && IP_NAPT
         out("NAPT %d\n", wg.enableNapt() ? 1 : 0);

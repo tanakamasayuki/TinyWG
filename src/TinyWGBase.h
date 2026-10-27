@@ -21,6 +21,10 @@ public:
     bool setEndpoint(int peer, const IPAddress &address, uint16_t port);
     // Keepalive interval in seconds for a peer behind NAT; 0 = off.
     bool setPersistentKeepalive(int peer, uint16_t seconds);
+    // Inner MTU, 576 up to TINYWG_MTU (1420 by default). Lower it when the outer
+    // path is smaller than 1500 (PPPoE, LTE, another tunnel): MTU + 60 must fit.
+    virtual bool setMtu(uint16_t mtu);
+    uint16_t mtu() const { return device_.mtu(); }
     // Starts a handshake now instead of on the first packet.
     bool connect(int peer);
 

@@ -31,6 +31,9 @@ public:
                uint16_t listenPort = 51820);
     void end();
 
+    // Also sets wg0's MTU, so lwIP sizes TCP segments to fit. Any time, before begin() too.
+    bool setMtu(uint16_t mtu) override;
+
     // wg0, for routing or NAPT set-up done by the sketch.
     struct netif *netif() { return &netif_; }
 

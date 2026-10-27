@@ -71,6 +71,16 @@ Peers that connect to us need no endpoint; it follows the source of the last aut
 
 Keys come from `wg genkey` / `wg pubkey`.
 
+## MTU
+
+The inner MTU is 1420 by default. When the outer path is smaller than 1500 (PPPoE, LTE, inside another tunnel), lower it at run time, before or after `begin()`. The outer path must carry MTU + 60 bytes.
+
+```cpp
+wg.setMtu(1280);   // 576 to TINYWG_MTU; also sets wg0's MTU in lwIP, so TCP segments shrink to fit
+```
+
+`TINYWG_MTU` is the ceiling that sizes the buffers; lower it too to save RAM when large MTUs are never used.
+
 ## Clock
 
 The initiator's handshake carries a TAI64N timestamp, and the responder accepts only newer ones. A board without an RTC whose clock goes back after a reboot is rejected by its peer (Linux included). **When acting as a client, set the clock with NTP before `begin()`.** A responder-only device needs no clock. `setWallClock()` replaces the time source.
@@ -83,7 +93,7 @@ Override with `-D` (`src/tinywg/wg_config.h`).
 |---|---|---|
 | `TINYWG_MAX_PEERS` | 4 | peers |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | AllowedIPs entries per peer |
-| `TINYWG_MTU` | 1420 | inner MTU |
+| `TINYWG_MTU` | 1420 | largest inner MTU (sizes the buffers); the MTU in use can be lowered at run time with `setMtu()` |
 | `TINYWG_REPLAY_WINDOW` | 128 | replay window in bits |
 | `TINYWG_STAGED_PACKET` | 1 | hold one packet while a handshake is in progress |
 

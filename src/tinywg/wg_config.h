@@ -13,7 +13,8 @@
 #define TINYWG_MAX_ALLOWED_IPS 4
 #endif
 
-// Inner MTU: the largest IP packet carried through the tunnel.
+// Largest inner MTU: sizes the packet buffers. The MTU in use can be lowered at
+// run time with setMtu(); lowering this as well saves RAM.
 #ifndef TINYWG_MTU
 #define TINYWG_MTU 1420
 #endif

@@ -130,7 +130,7 @@ void ReplayWindow::mark(uint64_t counter)
 
 Device::Device()
     : transport_(nullptr), random_(port::defaultRandom()), wallClock_(port::defaultWallClock), started_(false),
-      lastTaiSeconds_(0), lastTaiNanos_(0)
+      mtu_(TINYWG_MTU), lastTaiSeconds_(0), lastTaiNanos_(0)
 {
     memset(peers_, 0, sizeof(peers_));
     memset(&stats_, 0, sizeof(stats_));
@@ -281,6 +281,13 @@ bool Device::setPersistentKeepalive(int index, uint16_t seconds)
     if (!p) return false;
     p->keepaliveSeconds = seconds;
     if (seconds == 0) p->persistentKeepalive.disarm();
+    return true;
+}
+
+bool Device::setMtu(uint16_t mtu)
+{
+    if (mtu < kMinMtu || mtu > TINYWG_MTU) return false;
+    mtu_ = mtu;
     return true;
 }
 
@@ -789,7 +796,7 @@ SendResult Device::sendData(Peer *p, const uint8_t *packet, size_t len, uint32_t
 
     // Pad to a multiple of 16 without exceeding the MTU (whitepaper §5.4.6).
     size_t padded = (len + 15) & ~(size_t)15;
-    if (padded > TINYWG_MTU) padded = len;
+    if (padded > mtu_) padded = len;
     uint8_t *msg = tx_;
     uint64_t counter = s.sendCounter++;
     setHeader(msg, kTypeData);
@@ -842,7 +849,7 @@ void Device::receiveOuter(uint8_t *data, size_t len, const Endpoint &from, uint3
 
 SendResult Device::sendInner(const uint8_t *packet, size_t len, uint32_t nowMs)
 {
-    if (!started_ || len < 20 || len > TINYWG_MTU || (packet[0] >> 4) != 4) return SendResult::Invalid;
+    if (!started_ || len < 20 || len > mtu_ || (packet[0] >> 4) != 4) return SendResult::Invalid;
     int index = routePeer(packet + 16);
     if (index < 0) return SendResult::NoRoute;
     return sendData(&peers_[index], packet, len, nowMs);

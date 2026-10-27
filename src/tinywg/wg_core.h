@@ -34,7 +34,7 @@ enum class SendResult : uint8_t {
     Dropped,     // no session yet and nowhere to hold it
     NoRoute,     // no peer's AllowedIPs covers the destination
     NoEndpoint,  // the peer has never been reached and has no configured endpoint
-    Invalid,     // not an IPv4 packet, or larger than TINYWG_MTU
+    Invalid,     // not an IPv4 packet, or larger than mtu()
 };
 
 struct PeerStatus {
@@ -67,6 +67,8 @@ struct Stats {
 
 class Device {
 public:
+    static constexpr uint16_t kMinMtu = 576;
+
     Device();
     ~Device() { end(); }
 
@@ -86,6 +88,9 @@ public:
     bool setEndpoint(int peer, const Endpoint &endpoint);
     // 0 turns persistent keepalive off.
     bool setPersistentKeepalive(int peer, uint16_t seconds);
+    // Inner MTU, from kMinMtu up to TINYWG_MTU. Larger packets are not sent.
+    bool setMtu(uint16_t mtu);
+    uint16_t mtu() const { return mtu_; }
 
     int findPeer(const uint8_t publicKey[kKeyLen]) const;
     // The peer whose AllowedIPs best match addr (longest prefix), or -1.
@@ -138,6 +143,7 @@ private:
     RandomFn random_;
     WallClockFn wallClock_;
     bool started_;
+    uint16_t mtu_;
 
     uint8_t staticPrivate_[kKeyLen];
     uint8_t staticPublic_[kKeyLen];

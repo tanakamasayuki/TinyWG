@@ -117,13 +117,22 @@ bool TinyWG::enableNapt(bool enable)
 }
 #endif
 
+bool TinyWG::setMtu(uint16_t mtu)
+{
+    lock();
+    bool ok = device_.setMtu(mtu);
+    if (ok && up_) netif_.mtu = mtu;
+    unlock();
+    return ok;
+}
+
 err_t TinyWG::netifInit(struct netif *n)
 {
     n->name[0] = 'w';
     n->name[1] = 'g';
     n->output = netifOutput;
     n->linkoutput = nullptr;
-    n->mtu = TINYWG_MTU;
+    n->mtu = static_cast<TinyWG *>(n->state)->device_.mtu();
     n->hwaddr_len = 0;
     n->flags = 0;   // point-to-point: no ARP, no broadcast
     return ERR_OK;
@@ -135,7 +144,7 @@ err_t TinyWG::netifOutput(struct netif *n, struct pbuf *p, const ip4_addr_t *des
     (void)dest;
     TinyWG *self = static_cast<TinyWG *>(n->state);
     size_t len = p->tot_len;
-    if (len > TINYWG_MTU) return ERR_BUF;
+    if (len > self->device_.mtu()) return ERR_BUF;
     const uint8_t *data;
     if (p->len == p->tot_len) {
         data = static_cast<const uint8_t *>(p->payload);

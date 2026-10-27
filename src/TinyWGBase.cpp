@@ -54,6 +54,14 @@ bool TinyWGBase::setPersistentKeepalive(int peer, uint16_t seconds)
     return ok;
 }
 
+bool TinyWGBase::setMtu(uint16_t mtu)
+{
+    lock();
+    bool ok = device_.setMtu(mtu);
+    unlock();
+    return ok;
+}
+
 bool TinyWGBase::connect(int peer)
 {
     lock();

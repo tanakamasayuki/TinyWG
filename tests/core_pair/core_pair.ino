@@ -180,12 +180,27 @@ void setup()
     size_t nr = makeIp(pkt2, ipA, ipX, 1);
     EXPECT_TRUE("no route", g_dev[0].sendInner(pkt2, nr, g_now) == SendResult::NoRoute);
 
+    int before;
+    // A smaller MTU at run time: the bounds, a packet over it, and no padding past it.
+    EXPECT_TRUE("mtu bounds", !g_dev[0].setMtu(Device::kMinMtu - 1) && !g_dev[0].setMtu(TINYWG_MTU + 1) &&
+                                  g_dev[0].mtu() == TINYWG_MTU);
+    EXPECT_TRUE("mtu set", g_dev[0].setMtu(1000) && g_dev[0].mtu() == 1000);
+    size_t big = makeIp(pkt2, ipA, ipB, 1001 - 20);
+    EXPECT_TRUE("over mtu refused", g_dev[0].sendInner(pkt2, big, g_now) == SendResult::Invalid);
+    size_t odd = makeIp(pkt2, ipA, ipB, 999 - 20);
+    before = g_tr[1].inbox.count;
+    EXPECT_TRUE("at mtu sent", g_dev[0].sendInner(pkt2, odd, g_now) == SendResult::Sent);
+    EXPECT_TRUE("no padding past mtu", g_wireCount == 1 && g_wire[0].len == 16 + 999 + 16);
+    pump();
+    EXPECT_TRUE("at mtu delivered", g_tr[1].inbox.count == before + 1 && g_tr[1].inbox.lastLen == odd);
+    g_dev[0].setMtu(TINYWG_MTU);
+
     // Out-of-order delivery inside the window is accepted.
     for (int i = 0; i < 3; i++) g_dev[0].sendInner(pkt, n1, g_now);
     static Datagram ooo[3];
     memcpy(ooo, g_wire, sizeof(ooo));
     dropWire();
-    int before = g_tr[1].inbox.count;
+    before = g_tr[1].inbox.count;
     for (int i = 2; i >= 0; i--) g_dev[1].receiveOuter(ooo[i].data, ooo[i].len, ooo[i].from, g_now);
     EXPECT_TRUE("out of order accepted", g_tr[1].inbox.count == before + 3);
 
