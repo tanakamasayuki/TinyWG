@@ -1,6 +1,6 @@
 # Advanced guide
 
-[日本語](guide-advanced.ja.md) | [Beginner's guide](guide-beginner.md) | [README](../README.md) | [Specification (Japanese)](../SPEC.ja.md)
+[日本語](guide-advanced.ja.md) | [Beginner's guide](guide-beginner.md) | [README](../README.md) | [Specification](../SPEC.md)
 
 How TinyWG is built, what the API does in detail, and what to watch for in the field. It assumes you have been through the [beginner's guide](guide-beginner.md).
 
@@ -215,7 +215,7 @@ Override with `-D` (`src/tinywg/wg_config.h`). With `arduino-cli`: `--build-prop
 | `TINYWG_REPLAY_WINDOW` | 128 | window in bits; a multiple of 32, at least 64 |
 | `TINYWG_STAGED_PACKET` | 1 | 0: do not hold a packet sent during a handshake (saves about MTU bytes) |
 
-With the defaults `Device` is about 6.3 KB. All of `TinyWG` adds 25.6 KB of flash and 8.2 KB of static RAM on an ESP32. Details are in [SPEC.ja.md](../SPEC.ja.md) §5.
+With the defaults `Device` is about 6.3 KB. All of `TinyWG` adds 25.6 KB of flash and 8.2 KB of static RAM on an ESP32. Details are in [SPEC.md](../SPEC.md) §5.
 
 ## 9. Timers and behaviour
 
@@ -381,4 +381,4 @@ Time is a 32-bit millisecond count like `millis()`; the wrap after 49.7 days is 
 
 - The tests and how to run them: [tests/README.ja.md](../tests/README.ja.md)
 - Interoperability with the Linux kernel WireGuard is checked by automated tests
-- On-board measurements (X25519, handshake, AEAD speed, ping, throughput, long runs, Wi-Fi outages): [SPEC.ja.md](../SPEC.ja.md) §5.2
+- On-board measurements (X25519, handshake, AEAD speed, ping, throughput, long runs, Wi-Fi outages): [SPEC.md](../SPEC.md) §5.2

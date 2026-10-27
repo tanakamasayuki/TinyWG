@@ -19,7 +19,7 @@ Some uses:
 
 - [Beginner's guide](docs/guide-beginner.md): from making keys to an ESP32 talking to a Linux PC, step by step
 - [Advanced guide](docs/guide-advanced.md): structure, locking, routing and NAPT, keys and time, MTU and memory, timers, diagnosis, `TinyWGUdp` and `tinywg::Device`
-- [Specification](SPEC.ja.md) (Japanese): design and on-board measurements
+- [Specification](SPEC.md): design and on-board measurements
 - [Tests](tests/README.ja.md) (Japanese): the test suites and how to run them
 
 ## Examples
@@ -40,7 +40,7 @@ Some uses:
 | CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | on board, V307 (PC to board over Ethernet, long run, benchmarks) |
 | lang-ship:host (tests on a PC) | — | yes | `/dev/urandom` | interop-tested against the Linux kernel WireGuard |
 
-On an ESP32, one X25519 takes 17.6 ms and answering a handshake 72.7 ms (ESP32-S3: 12.5 ms / 52.0 ms); see SPEC.ja.md §5.2.
+On an ESP32, one X25519 takes 17.6 ms and answering a handshake 72.7 ms (ESP32-S3: 12.5 ms / 52.0 ms); see [SPEC.md](SPEC.md) §5.2.
 
 ### Footprint (added to an otherwise identical sketch)
 
