@@ -9,6 +9,8 @@
 // Serial commands (one line each):
 //   CFG <private> <peer public> [<psk>]   start wg0 with these keys (repeatable)
 //   CONNECT                               start a handshake from the board
+//   KEEPALIVE <seconds>                   persistent keepalive (0 = off)
+//   NAPT                                  route the peer to the LAN through NAPT (ESP32)
 //   STATS                                 print the drop counters
 
 #if defined(ARDUINO_ARCH_ESP32)
@@ -22,6 +24,7 @@ typedef NetworkUDP EchoUDP;
 #include <TinyWG.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #ifndef WIFI_SSID
@@ -91,6 +94,14 @@ static void command(char *line)
         configure(line);
     } else if (strcmp(line, "CONNECT") == 0) {
         out("CONNECT %d\n", wg.connect(peer) ? 1 : 0);
+    } else if (strncmp(line, "KEEPALIVE ", 10) == 0) {
+        out("KEEPALIVE %d\n", wg.setPersistentKeepalive(peer, (uint16_t)atoi(line + 10)) ? 1 : 0);
+    } else if (strcmp(line, "NAPT") == 0) {
+#if defined(IP_NAPT) && IP_NAPT
+        out("NAPT %d\n", wg.enableNapt() ? 1 : 0);
+#else
+        Serial.println("NAPT 0");
+#endif
     } else if (strcmp(line, "STATS") == 0) {
         tinywg::Stats s = wg.stats();
         tinywg::PeerStatus p;

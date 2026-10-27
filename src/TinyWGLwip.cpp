@@ -111,9 +111,9 @@ bool TinyWG::enableNapt(bool enable)
 {
     if (!up_) return false;
     lock();
-    ip_napt_enable(ip4_addr_get_u32(netif_ip4_addr(&netif_)), enable ? 1 : 0);
+    int ok = ip_napt_enable_netif(&netif_, enable ? 1 : 0);
     unlock();
-    return true;
+    return ok != 0;
 }
 #endif
 
@@ -197,7 +197,9 @@ void TinyWG::sendOuter(const tinywg::Endpoint &to, const uint8_t *data, size_t l
 void TinyWG::deliverInner(int peer, uint8_t *packet, size_t len)
 {
     (void)peer;
-    struct pbuf *q = pbuf_alloc(PBUF_RAW, (u16_t)len, PBUF_RAM);
+    // Room for a link header in front: a packet that lwIP forwards (NAPT) goes
+    // out on Wi-Fi or Ethernet as it is, and cannot grow a header otherwise.
+    struct pbuf *q = pbuf_alloc(PBUF_LINK, (u16_t)len, PBUF_RAM);
     if (!q) return;
     pbuf_take(q, packet, (u16_t)len);
     if (netif_.input(q, &netif_) != ERR_OK) pbuf_free(q);

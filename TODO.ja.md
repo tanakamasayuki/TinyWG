@@ -15,6 +15,8 @@
 | Python 製 WireGuard ピア(`tests/helpers/wg_peer.py`) | カーネル WireGuard と突き合わせて、イニシエータ / レスポンダの両方で正しいことを確認済み |
 | ESP32(D0WD-V3) / ESP32-S3 | `crypto_vectors` / `core_pair` / `bench_crypto` / `board_pair` / `board_responder` 通過 |
 | ESP32 ↔ ESP32-S3(`board_pair`) | SoftAP 上で TCP 32 KB をトンネル越しに往復。ハンドシェイク 135〜171 ms、約 376〜416 KiB/s、エラーなし |
+| ESP32 の NAPT(`board_responder`) | トンネル越しに LAN のルーターへ ping と DNS が通る(受信 pbuf のリンクヘッダの余白不足を直して通過) |
+| ESP32 の長時間試験(`board_responder/test_board_longrun.py`) | ボード側からの鍵の更新が 120 秒、keepalive が設定どおり、鍵のゼロ化が最後のハンドシェイクから約 540 秒、その後の再接続も通過 |
 | PC → ESP32 / ESP32-S3 / CH32V307(`board_responder`) | ESP32 系は家庭用 AP 経由、CH32V307 は Ethernet。ハンドシェイク往復 94 / 100 / 106 ms、ping 約 3 / 3 / 1 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
 | arduino-pico 6.3.1(Pico W / Pico 2 W) | ビルドのみ |
 | CH32V307(ArduinoCore-CH32RV 0.4.0、96 MHz) | 実機で `smoke` / `crypto_vectors` / `core_pair` / `bench_crypto` / `board_responder`(Ethernet)通過(X25519 24 ms、レスポンダのハンドシェイク処理 103 ms) |
@@ -24,8 +26,7 @@
 ### 実機確認
 - [ ] Pico W / Pico 2 W の実機で、`bench_crypto` と `PicoWClient` を動かす。lwIP のロック(`LWIPMutex`)が実機で問題ないか確かめる
 - [ ] CH32V307 の長時間試験(`yield()` 駆動の lwIP タイマーで、keepalive と鍵の更新が回るか)
-- [ ] ESP32 の `enableNapt()` を実機で確かめる(ピアから LAN / インターネットへ中継)
-- [ ] 長時間の試験: 鍵の更新(120 秒ごと)、keepalive、鍵のゼロ化(540 秒)、Wi-Fi 切断からの復帰
+- [ ] Wi-Fi 切断からの復帰の試験
 
 ### 機能
 - [ ] arduino-pico の FreeRTOS モード対応(今はコンパイルエラーで止めている。lwIP 専用タスクへ処理を投げる形が必要)

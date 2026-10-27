@@ -19,9 +19,9 @@ Some uses:
 
 | Core | `TinyWG` (lwIP) | `TinyWGUdp` | Random source | Verified |
 |---|---|---|---|---|
-| ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (two-board TCP, benchmarks) |
+| ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (PC to board, two-board TCP, NAPT, long run, benchmarks) |
 | RP2040 / RP2350 (arduino-pico 6.3, Pico W / Pico 2 W) | yes (not in FreeRTOS mode) | yes | `get_rand_64` | build only |
-| CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | build only |
+| CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | on board, V307 (PC to board over Ethernet, benchmarks) |
 | lang-ship:host (tests on a PC) | — | yes | `/dev/urandom` | interop-tested against the Linux kernel WireGuard |
 
 On an ESP32, one X25519 takes 17.6 ms and answering a handshake 72.7 ms (ESP32-S3: 12.5 ms / 52.0 ms); see SPEC.ja.md §5.2.

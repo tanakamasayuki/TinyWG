@@ -11,7 +11,9 @@ knows the PC's endpoint it also initiates a handshake of its own.
 
 import base64
 import re
+import socket
 import struct
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -55,6 +57,60 @@ def stats(dut):
     line = m.group(0).decode()
     print("  " + line)
     return dict(kv.split("=") for kv in line.split()[1:])
+
+
+def dns_query(ident):
+    return struct.pack(">HHHHHH", ident, 0x0100, 1, 0, 0, 0) + b"\x07example\x03com\x00" + struct.pack(">HH", 1, 1)
+
+
+def gateway():
+    """The default gateway if it answers DNS from this PC, else None."""
+    try:
+        out = subprocess.run(["ip", "-4", "route", "show", "default"], capture_output=True, text=True).stdout
+        gw = out.split()[2]
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(2)
+        try:
+            s.sendto(dns_query(1), (gw, 53))
+            s.recvfrom(512)
+        finally:
+            s.close()
+        return gw
+    except (OSError, IndexError):
+        return None
+
+
+def napt(dut, peer, record_property):
+    """ESP32 only: the peer reaches the LAN through the board's NAPT.
+
+    The far end is the PC's default gateway, asked for a ping and a DNS query
+    (this PC may drop whatever it did not ask for, ping included). Skipped
+    when the gateway does not answer DNS from the PC directly.
+    """
+    gw = gateway()
+    if not gw:
+        print("  NAPT: no gateway answering DNS, skipped")
+        return
+    dut.write("NAPT\n")
+    m = dut.expect(re.compile(rb"NAPT (\d)\r?\n"), timeout=5)
+    if m.group(1) != b"1":
+        print("  NAPT: not on this core, skipped")
+        return
+
+    peer.send_ip(udp(PC, gw, 40001, 53, dns_query(0x4e41)))
+    p = peer.recv_ip()
+    assert p is not None, f"no DNS answer from {gw} through NAPT"
+    src, dst, proto, body = parse_ipv4(p)
+    assert (src, dst, proto) == (gw, PC, 17) and struct.unpack_from("!HH", body) == (53, 40001)
+    assert body[8:10] == b"\x4e\x41"
+
+    peer.send_ip(icmp_echo(PC, gw, 0x4e41, 1))
+    p = peer.recv_ip()
+    assert p is not None, f"no ping reply from {gw} through NAPT"
+    src, dst, proto, body = parse_ipv4(p)
+    assert (src, dst, proto, body[0]) == (gw, PC, 1, 0)
+    print(f"  NAPT: ping and a DNS query to {gw} answered through the board")
+    record_property("napt", "ok")
 
 
 def test_board_responder(dut, record_property):
@@ -102,6 +158,8 @@ def test_board_responder(dut, record_property):
         peer.pump(2.0)
         assert peer.session.recv_key != old, "board-initiated handshake not seen"
         assert udp_echo(peer, b"after-rekey") == b"after-rekey"
+
+        napt(dut, peer, record_property)
 
         s = stats(dut)
         assert s["replay"] == "0" and s["decrypt"] == "0" and s["badmac"] == "0"

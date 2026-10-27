@@ -89,6 +89,8 @@ class WgPeer:
         self.session = None
         self.inbox = []          # inner packets received while waiting for something else
         self.keepalives = 0
+        self.responded = 0       # handshakes the board initiated and we answered
+        self.last_handshake = None   # time.monotonic() of the latest completed handshake
         self.last_timestamp = b"\0" * 12
 
     def close(self):
@@ -136,6 +138,7 @@ class WgPeer:
             _unaead(k, 0, data[44:60], h2)   # raises on a wrong key
             send_key, recv_key = _kdf(ck2, b"", 2)
             self.session = Session(send_key, recv_key, index, sender)
+            self.last_handshake = time.monotonic()
             self.send_ip(b"")   # keepalive: confirms the session to the responder
             return True
         return False
@@ -174,6 +177,8 @@ class WgPeer:
         msg += _mac(_hash(LABEL_MAC1, self.peer_pub), msg) + b"\0" * 16
         recv_key, send_key = _kdf(ck, b"", 2)
         self.session = Session(send_key, recv_key, index, sender)
+        self.responded += 1
+        self.last_handshake = time.monotonic()
         self.sock.sendto(msg, self.endpoint)
 
     # ---- data
