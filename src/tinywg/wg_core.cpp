@@ -151,6 +151,7 @@ bool Device::begin(const uint8_t privateKey[kKeyLen], Transport *transport)
     uint8_t chainKey[32];
     crypto::hash(chainKey, (const uint8_t *)kConstruction, sizeof(kConstruction) - 1);
     crypto::hash(initialHash_, chainKey, 32, (const uint8_t *)kIdentifier, sizeof(kIdentifier) - 1);
+    memset(&stats_, 0, sizeof(stats_));
     transport_ = transport;
     started_ = true;
     return true;

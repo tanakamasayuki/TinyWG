@@ -30,7 +30,7 @@ class KernelWg:
         with IPRoute() as ip:
             ip.link("add", ifname=self.ifname, kind="wireguard")
             idx = ip.link_lookup(ifname=self.ifname)[0]
-            ip.addr("add", index=idx, address=self.address, mask=self.prefix)
+            ip.addr("add", index=idx, address=self.address, prefixlen=self.prefix)
             ip.link("set", index=idx, state="up")
         peer = {"public_key": peer_public_key, "allowed_ips": [peer_allowed]}
         if peer_endpoint_port:
