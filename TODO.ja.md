@@ -17,7 +17,7 @@
 | ESP32 ↔ ESP32-S3(`board_pair`) | SoftAP 上で TCP 32 KB をトンネル越しに往復。ハンドシェイク 135〜171 ms、約 376〜416 KiB/s、エラーなし |
 | MTU の実行時変更(`setMtu()`) | host の `core_pair` で範囲と送信の制限、ESP32 / ESP32-S3 / CH32V307 の `board_responder` で、MTU 1000 にすると lwIP が返事を 1000 バイト以下に分割することを確認 |
 | ESP32 の NAPT(`board_responder`) | トンネル越しに LAN のルーターへ ping と DNS が通る(受信 pbuf のリンクヘッダの余白不足を直して通過) |
-| ESP32 の長時間試験(`board_responder/test_board_longrun.py`) | ボード側からの鍵の更新が 120 秒、keepalive が設定どおり、鍵のゼロ化が最後のハンドシェイクから約 540 秒、その後の再接続も通過 |
+| ESP32 / CH32V307 の長時間試験(`board_responder/test_board_longrun.py`) | ボード側からの鍵の更新が 120 秒、keepalive が設定どおり、鍵のゼロ化が最後のハンドシェイクから約 540 秒、その後の再接続も通過 |
 | ESP32 / ESP32-S3 の Wi-Fi 切断(`board_responder/test_board_wifi.py`) | 5 秒の切断のあと同じ鍵で復帰、切断中に始めたハンドシェイクが再接続後の再送で成立、PC 側のポート変更にボードが追従 |
 | PC → ESP32 / ESP32-S3 / CH32V307(`board_responder`) | ESP32 系は家庭用 AP 経由、CH32V307 は Ethernet。ハンドシェイク往復 94 / 100 / 106 ms、ping 約 3 / 3 / 1 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
 | arduino-pico 6.3.1(Pico W / Pico 2 W) | ビルドのみ |
@@ -27,7 +27,6 @@
 
 ### 実機確認
 - [ ] Pico W / Pico 2 W の実機で、`bench_crypto` と `PicoWClient` を動かす。lwIP のロック(`LWIPMutex`)が実機で問題ないか確かめる
-- [ ] CH32V307 の長時間試験(`yield()` 駆動の lwIP タイマーで、keepalive と鍵の更新が回るか)
 
 ### 機能
 - [ ] arduino-pico の FreeRTOS モード対応(今はコンパイルエラーで止めている。lwIP 専用タスクへ処理を投げる形が必要)
