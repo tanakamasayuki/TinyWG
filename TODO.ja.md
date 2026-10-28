@@ -5,22 +5,33 @@
 ## 現状
 
 - ブランチは `main` のみ。作業はすべてコミット済みで、**push はまだ**
-- プロトコルエンジン、lwIP アダプタ(`TinyWG`)、Arduino UDP アダプタ(`TinyWGUdp`)、サンプル 4 本、pytest の試験環境、リリース用ツールまでできている
+- プロトコルエンジン、lwIP アダプタ(`TinyWG`)、Arduino UDP アダプタ(`TinyWGUdp`)、サンプル 5 本、pytest の試験環境、リリース用ツールまでできている
+- 2026-10-28 に足したもの(どれも、使わなければリンクされないか、既定の動きを変えない)
+  - `setTimestampReset()`:時計のないクライアントを受け付ける
+  - `TinyWGTimeServer`:WG サーバーと同じアドレスで時刻を配る簡易 NTP
+  - `setOuterUdp()`:外側の UDP だけを、モジュール側のスタック(W5500 の `Ethernet` ライブラリなど)にする。ESP32 は専用タスク、CH32V は lwIP のタイマーで回す
+  - `tinywg::CookieGuard`:負荷が高いときの Cookie Reply
+  - `setStagingBuffer()`:ハンドシェイク待ちのパケットの置き場所。既定は送信バッファの中
+  - RAM の削減:`TinyWG` 全体で ESP32 8240 → 5360 B、CH32V307 8000 → 4992 B
+- テストのボードは決まった組で使う(`tests/.env` の冒頭のコメント)。ESP32 は `ec62608443a8` + `0070070e9b0c`、S3 は `d0cf1359101c` + `d0cf1358fd94`。勝手に別のボードを選ばない
 
 ### 確認できていること
 
 | 対象 | 状態 |
 |---|---|
-| host(lang-ship:host 1.7.1) | 全テスト通過。Linux カーネル WireGuard との相互接続 7 シナリオ(両方向、ping、MTU 1420、PSK、PSK 違い、300 パケット)も通過 |
+| host(lang-ship:host 1.7.1) | 全テスト通過(`core_pair` 56 項目、`time_server` は chrony からの同期も)。Linux カーネル WireGuard との相互接続 8 シナリオ(両方向、ping、MTU 1420、PSK、PSK 違い、300 パケット、`CookieGuard` の cookie をカーネルが受け取って再送)も通過 |
 | Python 製 WireGuard ピア(`tests/helpers/wg_peer.py`) | カーネル WireGuard と突き合わせて、イニシエータ / レスポンダの両方で正しいことを確認済み |
 | ESP32(D0WD-V3) / ESP32-S3 | `crypto_vectors` / `core_pair` / `bench_crypto` / `board_pair` / `board_responder` 通過 |
-| ESP32 ↔ ESP32-S3(`board_pair`) | SoftAP 上で TCP 32 KB をトンネル越しに往復。ハンドシェイク 135〜171 ms、約 376〜416 KiB/s、エラーなし |
+| `board_pair`(ESP32 / S3 の 4 組の直積 × 外側のモード 4 通り) | SoftAP 上で TCP 32 KB をトンネル越しに往復。16 件すべて通過(2026-10-28)。外側を `setOuterUdp()` にした側があっても通る |
+| `setOuterUdp()`(`board_responder`) | ESP32 / S3 で、lwIP、外側 UDP を自動で回す、`update()` で回すの 3 モードとも通過。外側は ESP32 の `WiFiUDP`。W5500 の実機は未確認 |
+| `TinyWGTimeServer` | ESP32-S3 上のサーバーに、ESP32 の SNTP クライアント(lwIP)と PC の chrony が同期 |
 | MTU の実行時変更(`setMtu()`) | host の `core_pair` で範囲と送信の制限、ESP32 / ESP32-S3 / CH32V307 の `board_responder` で、MTU 1000 にすると lwIP が返事を 1000 バイト以下に分割することを確認 |
 | ESP32 の NAPT(`board_responder`) | トンネル越しに LAN のルーターへ ping と DNS が通る(受信 pbuf のリンクヘッダの余白不足を直して通過) |
 | ESP32 / CH32V307 の長時間試験(`board_responder/test_board_longrun.py`) | ボード側からの鍵の更新が 120 秒、keepalive が設定どおり、鍵のゼロ化が最後のハンドシェイクから約 540 秒、その後の再接続も通過 |
 | ESP32 / ESP32-S3 の Wi-Fi 切断(`board_responder/test_board_wifi.py`) | 5 秒の切断のあと同じ鍵で復帰、切断中に始めたハンドシェイクが再接続後の再送で成立、PC 側のポート変更にボードが追従 |
 | PC → ESP32 / ESP32-S3 / CH32V307(`board_responder`) | ESP32 系は家庭用 AP 経由、CH32V307 は Ethernet。ハンドシェイク往復 94 / 100 / 106 ms、ping 約 3 / 3 / 1 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
 | arduino-pico 6.3.1(Pico W / Pico 2 W) | ビルドのみ |
+| `CookieGuard` を入れたあとの実機 | 未実施(host と kernel_interop のみ)。リリース前のフルテストで確かめる |
 | CH32V307(ArduinoCore-CH32RV 0.4.0、96 MHz) | 実機で `smoke` / `crypto_vectors` / `core_pair` / `bench_crypto` / `board_responder`(Ethernet)通過(X25519 24 ms、レスポンダのハンドシェイク処理 103 ms) |
 
 ## 残っている作業
