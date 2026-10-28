@@ -285,11 +285,10 @@ Override with `-D` (`src/tinywg/wg_config.h`). With `arduino-cli`: `--build-prop
 |---|---|---|
 | `TINYWG_MAX_PEERS` | 4 | about 0.7 KB per peer |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | a few bytes per entry |
-| `TINYWG_MTU` | 1420 | sizes the send buffer and the staged packet (about MTU bytes each) |
+| `TINYWG_MTU` | 1420 | sizes the send buffer (about MTU bytes) |
 | `TINYWG_REPLAY_WINDOW` | 128 | window in bits; a multiple of 32, at least 64 |
-| `TINYWG_STAGED_PACKET` | 1 | 0: do not hold a packet sent during a handshake (saves about MTU bytes) |
 
-With the defaults `Device` is about 5.8 KB. All of `TinyWG` adds 26.8 KB of flash and 6.6 KB of static RAM on an ESP32. Details are in [SPEC.md](../SPEC.md) §5.
+With the defaults `Device` is about 4.5 KB. All of `TinyWG` adds 26.9 KB of flash and 5.4 KB of static RAM on an ESP32. Details are in [SPEC.md](../SPEC.md) §5.
 
 ## 9. Timers and behaviour
 
@@ -306,7 +305,12 @@ The values are those of the WireGuard whitepaper, §6.
 
 At most 50 handshake initiations per second are accepted from one peer; the rest are dropped and counted in `rxFlood`.
 
-With `TINYWG_STAGED_PACKET` at 1, the last packet sent while there is no session is held and sent once the handshake completes (`SendResult::Queued`).
+The last packet sent while there is no session waits until the handshake completes and is then sent (`SendResult::Queued`). By default it waits in the send buffer, costing no RAM; in exchange, sending anything to another peer meanwhile loses it. A client with one peer never sees this. On a gateway with several peers, give `setStagingBuffer()` MTU bytes and it is kept.
+
+```cpp
+static uint8_t staging[1420];
+wg.setStagingBuffer(staging, sizeof(staging));
+```
 
 ## 10. Monitoring and diagnosis
 

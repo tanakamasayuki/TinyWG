@@ -134,10 +134,8 @@ Device::Device()
 {
     memset(peers_, 0, sizeof(peers_));
     memset(&stats_, 0, sizeof(stats_));
-#if TINYWG_STAGED_PACKET
     stagedPeer_ = -1;
     stagedLen_ = 0;
-#endif
 }
 
 bool Device::begin(const uint8_t privateKey[kKeyLen], Transport *transport)
@@ -161,10 +159,8 @@ void Device::end()
 {
     crypto::wipe(peers_, sizeof(peers_));
     crypto::wipe(staticPrivate_, sizeof(staticPrivate_));
-#if TINYWG_STAGED_PACKET
     stagedPeer_ = -1;
     stagedLen_ = 0;
-#endif
     transport_ = nullptr;
     started_ = false;
 }
@@ -248,9 +244,7 @@ bool Device::removePeer(int index)
 {
     Peer *p = peer(index);
     if (!p) return false;
-#if TINYWG_STAGED_PACKET
     if (stagedPeer_ == index) stagedPeer_ = -1;
-#endif
     crypto::wipe(p, sizeof(*p));
     return true;
 }
@@ -413,7 +407,7 @@ bool Device::initiateHandshake(Peer *p, bool retry, uint32_t now)
     }
 
     detail::Handshake &hs = p->handshake;
-    uint8_t *msg = tx_;
+    uint8_t *msg = hs_;   // not tx_: a staged packet may be waiting there
     uint8_t key[32], dhOut[32], ephemeralPublic[32];
 
     hs.initiationSent = false;
@@ -530,7 +524,7 @@ void Device::handleInitiation(uint8_t *msg, size_t len, const Endpoint &from, ui
         crypto::wipe(&p->handshake, sizeof(p->handshake));
 
         uint8_t ephemeralPrivate[32], ephemeralPublic[32], tau[32];
-        uint8_t *resp = tx_;
+        uint8_t *resp = hs_;
         Session &s = p->next;
         clearSession(&s);
 
@@ -792,26 +786,40 @@ void Device::handleData(uint8_t *msg, size_t len, const Endpoint &from, uint32_t
     transport_->deliverInner(indexOf(p), plain, totalLen);
 }
 
+bool Device::setStagingBuffer(uint8_t *buffer, size_t size)
+{
+    if (buffer && size < kMinMtu) return false;
+    stagedPeer_ = -1;
+    staging_ = buffer;
+    stagingSize_ = buffer ? size : 0;
+    return true;
+}
+
+// Where the packet waiting for a handshake is kept: the sketch's buffer, or
+// else the payload area of tx_, where sendData() encrypts it in place.
+uint8_t *Device::stagingArea(size_t len)
+{
+    return staging_ && len <= stagingSize_ ? staging_ : tx_ + kDataHeaderLen;
+}
+
 SendResult Device::sendData(Peer *p, const uint8_t *packet, size_t len, uint32_t now)
 {
     Session &s = p->current;
     if (!sessionUsable(s, now)) {
-#if TINYWG_STAGED_PACKET
         if (len > 0) {
+            uint8_t *area = stagingArea(len);
+            if (packet != area) memmove(area, packet, len);
             stagedPeer_ = indexOf(p);
             stagedLen_ = len;
-            memcpy(staged_, packet, len);
         }
-#endif
         if (p->endpoint.port == 0) return SendResult::NoEndpoint;
         if (!p->attempting) initiateHandshake(p, false, now);
-#if TINYWG_STAGED_PACKET
         return len > 0 ? SendResult::Queued : SendResult::Dropped;
-#else
-        return SendResult::Dropped;
-#endif
     }
     if (p->endpoint.port == 0) return SendResult::NoEndpoint;
+    // Encrypting in tx_ overwrites a packet staged there (sendStaged() has
+    // already taken its own one off).
+    if (stagedPeer_ >= 0 && stagingArea(stagedLen_) == tx_ + kDataHeaderLen) stagedPeer_ = -1;
 
     // Pad to a multiple of 16 without exceeding the MTU (whitepaper §5.4.6).
     size_t padded = (len + 15) & ~(size_t)15;
@@ -838,13 +846,11 @@ SendResult Device::sendData(Peer *p, const uint8_t *packet, size_t len, uint32_t
 // Sends the staged packet for p; when there is none, a keepalive if asked for.
 void Device::sendStaged(Peer *p, bool keepaliveIfEmpty, uint32_t now)
 {
-#if TINYWG_STAGED_PACKET
     if (stagedPeer_ == indexOf(p)) {
         stagedPeer_ = -1;
-        sendData(p, staged_, stagedLen_, now);
+        sendData(p, stagingArea(stagedLen_), stagedLen_, now);
         return;
     }
-#endif
     if (keepaliveIfEmpty) sendData(p, nullptr, 0, now);
 }
 
@@ -894,9 +900,7 @@ void Device::tick(uint32_t now)
                 // Give up until something new is sent (whitepaper §6.4).
                 p->attempting = false;
                 crypto::wipe(&p->handshake, sizeof(p->handshake));
-#if TINYWG_STAGED_PACKET
                 if (stagedPeer_ == i) stagedPeer_ = -1;
-#endif
             } else {
                 initiateHandshake(p, true, now);
             }

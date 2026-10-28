@@ -25,12 +25,6 @@
 #define TINYWG_REPLAY_WINDOW 128
 #endif
 
-// 1: hold the last packet sent while a handshake is in progress and send it when
-// the session comes up (costs TINYWG_MTU bytes of RAM). 0: drop it.
-#ifndef TINYWG_STAGED_PACKET
-#define TINYWG_STAGED_PACKET 1
-#endif
-
 #if (TINYWG_REPLAY_WINDOW % 32) != 0 || TINYWG_REPLAY_WINDOW < 64
 #error "TINYWG_REPLAY_WINDOW must be a multiple of 32 and at least 64"
 #endif

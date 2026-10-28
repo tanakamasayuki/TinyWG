@@ -35,6 +35,12 @@
 | `virtual bool setMtu(uint16_t mtu)` | 成否 | 内側の MTU。576 〜 `TINYWG_MTU`。範囲外は false で、値は変わらない。いつでも呼べる。`TinyWG` では `wg0` の MTU も変わる |
 | `uint16_t mtu() const` | 今の MTU | |
 
+### ハンドシェイク待ちのパケット
+
+| メソッド | 戻り値 | 説明 |
+|---|---|---|
+| `bool setStagingBuffer(uint8_t *buffer, size_t size)` | 成否 | セッションがないときに送ろうとした最後の 1 パケットを、ハンドシェイクが済むまで待たせる場所。既定(`nullptr`)は送信バッファの中で、RAM を使わないが、待っている間にほかのピアへ送ると消える。MTU バイトの領域を渡すと消えない(複数ピアのゲートウェイ向け)。`size` が 576 未満なら false。`size` より大きいパケットは送信バッファで待つ |
+
 ### 時刻チェック
 
 | メソッド | 説明 |
@@ -114,7 +120,7 @@ lwIP にも Arduino にも依存しないエンジンです。スレッド安全
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | 秘密鍵と出力先で始める。乱数源がなければ false |
 | `void end()` | ピアと鍵を消去する |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | `TinyWGBase` と同じ |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` | `TinyWGBase` と同じ |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` | `TinyWGBase` と同じ |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | アドレスをバイト列で渡す |
 | `int findPeer(const uint8_t publicKey[32]) const` | 公開鍵からピアの番号を探す。なければ -1 |
 | `int routePeer(const uint8_t addr[4]) const` | そのアドレス宛てに送るピア(AllowedIPs の最長一致)。なければ -1 |
@@ -150,7 +156,7 @@ public:
 | 値 | 意味 |
 |---|---|
 | `Sent` | 暗号化して送った |
-| `Queued` | ハンドシェイクが済むまで保持した(`TINYWG_STAGED_PACKET`)。済んだら送る |
+| `Queued` | ハンドシェイクが済むまで待たせた。済んだら送る(待たせる場所は `setStagingBuffer()`) |
 | `Dropped` | セッションがなく、保持もできなかった |
 | `NoRoute` | 宛先がどのピアの AllowedIPs にも入っていない |
 | `NoEndpoint` | 送り先がわからない(Endpoint が未設定で、相手からも届いていない) |
@@ -206,6 +212,6 @@ typedef void (*WallClockFn)(uint64_t *unixSeconds, uint32_t *nanoseconds);
 
 `-D` で上書きできます。値と RAM への影響は [上級者ガイド §8](guide-advanced.ja.md#8-mtu-とメモリ) にあります。
 
-`TINYWG_MAX_PEERS`(4)、`TINYWG_MAX_ALLOWED_IPS`(4)、`TINYWG_MTU`(1420)、`TINYWG_REPLAY_WINDOW`(128)、`TINYWG_STAGED_PACKET`(1)
+`TINYWG_MAX_PEERS`(4)、`TINYWG_MAX_ALLOWED_IPS`(4)、`TINYWG_MTU`(1420)、`TINYWG_REPLAY_WINDOW`(128)
 
 バージョンは `TINYWG_VERSION_MAJOR` / `TINYWG_VERSION_MINOR` / `TINYWG_VERSION_PATCH` / `TINYWG_VERSION_STR`(`tinywg_version.h`)で参照できます。

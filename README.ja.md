@@ -115,7 +115,6 @@ wg.setMtu(1280);   // 576 〜 TINYWG_MTU。lwIP の wg0 の MTU も変わり、T
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | ピアごとの AllowedIPs の数 |
 | `TINYWG_MTU` | 1420 | トンネル内の MTU の上限(バッファの大きさ)。使う MTU は `setMtu()` で実行時に下げられる |
 | `TINYWG_REPLAY_WINDOW` | 128 | リプレイ防止の窓(ビット) |
-| `TINYWG_STAGED_PACKET` | 1 | ハンドシェイク中の 1 パケットを保持する |
 
 ## 制限
 

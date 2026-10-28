@@ -35,6 +35,12 @@ Key strings are always the 44-character Base64 printed by `wg genkey` / `wg pubk
 | `virtual bool setMtu(uint16_t mtu)` | success | Inner MTU, 576 to `TINYWG_MTU`. Out of range: false, nothing changes. Any time. With `TinyWG`, `wg0`'s MTU changes too |
 | `uint16_t mtu() const` | the MTU in use | |
 
+### Packet waiting for a handshake
+
+| Method | Returns | Description |
+|---|---|---|
+| `bool setStagingBuffer(uint8_t *buffer, size_t size)` | success | Where the last packet sent with no session waits for the handshake. The default (`nullptr`) is the send buffer: no RAM, but sending to another peer meanwhile loses it. A buffer of MTU bytes keeps it (gateways with several peers). false when `size` is under 576. A packet larger than `size` waits in the send buffer |
+
 ### Timestamp check
 
 | Method | Description |
@@ -114,7 +120,7 @@ The engine, with no lwIP or Arduino dependency. Not thread-safe: the caller seri
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | Starts with the private key and the output. false with no random source |
 | `void end()` | Wipes peers and keys |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | As in `TinyWGBase` |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` | As in `TinyWGBase` |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` | As in `TinyWGBase` |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | Address as bytes |
 | `int findPeer(const uint8_t publicKey[32]) const` | The peer with this public key, or -1 |
 | `int routePeer(const uint8_t addr[4]) const` | The peer a packet to this address goes to (longest AllowedIPs match), or -1 |
@@ -150,7 +156,7 @@ public:
 | Value | Meaning |
 |---|---|
 | `Sent` | Encrypted and sent |
-| `Queued` | Held until the handshake completes (`TINYWG_STAGED_PACKET`), then sent |
+| `Queued` | Held until the handshake completes, then sent (where it waits: `setStagingBuffer()`) |
 | `Dropped` | No session, and nowhere to hold it |
 | `NoRoute` | No peer's AllowedIPs covers the destination |
 | `NoEndpoint` | Nowhere to send (no Endpoint set, nothing heard from the peer) |
@@ -206,6 +212,6 @@ In namespace `tinywg`.
 
 Override with `-D`. Values and their effect on RAM: [advanced guide §8](guide-advanced.md#8-mtu-and-memory).
 
-`TINYWG_MAX_PEERS` (4), `TINYWG_MAX_ALLOWED_IPS` (4), `TINYWG_MTU` (1420), `TINYWG_REPLAY_WINDOW` (128), `TINYWG_STAGED_PACKET` (1)
+`TINYWG_MAX_PEERS` (4), `TINYWG_MAX_ALLOWED_IPS` (4), `TINYWG_MTU` (1420), `TINYWG_REPLAY_WINDOW` (128)
 
 The version is in `TINYWG_VERSION_MAJOR` / `TINYWG_VERSION_MINOR` / `TINYWG_VERSION_PATCH` / `TINYWG_VERSION_STR` (`tinywg_version.h`).

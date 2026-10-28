@@ -62,6 +62,14 @@ bool TinyWGBase::setMtu(uint16_t mtu)
     return ok;
 }
 
+bool TinyWGBase::setStagingBuffer(uint8_t *buffer, size_t size)
+{
+    lock();
+    bool ok = device_.setStagingBuffer(buffer, size);
+    unlock();
+    return ok;
+}
+
 void TinyWGBase::setTimestampReset(uint16_t seconds)
 {
     lock();

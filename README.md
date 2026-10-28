@@ -115,7 +115,6 @@ Override with `-D` (`src/tinywg/wg_config.h`).
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | AllowedIPs entries per peer |
 | `TINYWG_MTU` | 1420 | largest inner MTU (sizes the buffers); the MTU in use can be lowered at run time with `setMtu()` |
 | `TINYWG_REPLAY_WINDOW` | 128 | replay window in bits |
-| `TINYWG_STAGED_PACKET` | 1 | hold one packet while a handshake is in progress |
 
 ## Limitations
 

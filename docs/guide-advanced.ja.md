@@ -284,11 +284,10 @@ NTP の応答には認証がありません。同じ網にいる攻撃者は、�
 |---|---|---|
 | `TINYWG_MAX_PEERS` | 4 | 1 ピアあたり約 0.7 KB |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | 1 項目あたり数バイト |
-| `TINYWG_MTU` | 1420 | 送信バッファと staged packet の大きさ(それぞれ約 MTU バイト) |
+| `TINYWG_MTU` | 1420 | 送信バッファの大きさ(約 MTU バイト) |
 | `TINYWG_REPLAY_WINDOW` | 128 | 窓の大きさ(ビット)。32 の倍数で 64 以上 |
-| `TINYWG_STAGED_PACKET` | 1 | 0 にすると、ハンドシェイク中に送ろうとしたパケットを保持しない(約 MTU バイト減) |
 
-既定の設定で、`Device` は約 5.8 KB です。`TinyWG` 全体では、ESP32 で Flash +26.8 KB、静的 RAM +6.6 KB を使います。詳細は [SPEC.ja.md](../SPEC.ja.md) §5 にあります。
+既定の設定で、`Device` は約 4.5 KB です。`TinyWG` 全体では、ESP32 で Flash +26.9 KB、静的 RAM +5.4 KB を使います。詳細は [SPEC.ja.md](../SPEC.ja.md) §5 にあります。
 
 ## 9. タイマーと動き
 
@@ -305,7 +304,12 @@ WireGuard のホワイトペーパー §6 の値をそのまま使っていま�
 
 同じピアからのハンドシェイクの開始は、1 秒に 50 回までしか受け付けません。それを超えた分は捨てて、`rxFlood` を数えます。
 
-`TINYWG_STAGED_PACKET` が 1 のとき、セッションがない状態で送ろうとした最後の 1 パケットを保持します。ハンドシェイクが済むと送ります(`SendResult::Queued`)。
+セッションがない状態で送ろうとした最後の 1 パケットは、ハンドシェイクが済むまで待たせ、済んだら送ります(`SendResult::Queued`)。待たせる場所は、既定では送信バッファの中なので、RAM を使いません。その代わり、待っている間にほかのピアへ何か送ると、待っていたパケットは消えます。ピアが 1 つのクライアントでは起きません。複数のピアを持つゲートウェイでは、`setStagingBuffer()` に MTU バイトの領域を渡すと、消えなくなります。
+
+```cpp
+static uint8_t staging[1420];
+wg.setStagingBuffer(staging, sizeof(staging));
+```
 
 ## 10. 状態の監視と診断
 

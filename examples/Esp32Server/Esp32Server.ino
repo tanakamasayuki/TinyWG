@@ -33,6 +33,9 @@ static constexpr uint16_t kTimestampReset = 30;
 static constexpr bool kTimeServer = true;
 
 TinyWG wg;
+// en: With several peers, a packet waiting for one peer's handshake must not be lost when another is sent to.
+// ja: ピアが複数あるので、あるピアのハンドシェイクを待つパケットが、ほかへの送信で消えないようにする。
+static uint8_t staging[1420];
 WiFiServer echo(7);
 WiFiUDP ntpUdp;
 TinyWGTimeServer timeServer;
@@ -67,6 +70,7 @@ void setup()
         wg.addAllowedIp(index, p.tunnelIp, 32);
     }
     wg.setTimestampReset(kTimestampReset);
+    wg.setStagingBuffer(staging, sizeof(staging));
     if (kTimeServer) timeServer.begin(ntpUdp);
     char pub[45];
     wg.publicKey(pub);

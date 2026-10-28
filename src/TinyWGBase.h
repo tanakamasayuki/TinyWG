@@ -30,6 +30,10 @@ public:
     // (the default, as in standard WireGuard). Meant for the side that accepts
     // connections, on closed networks: see SPEC §6.
     void setTimestampReset(uint16_t seconds);
+    // Where a packet sent before the handshake completes waits. By default the
+    // send buffer, costing no RAM; it is lost if something goes to another peer
+    // meanwhile. Give a buffer of mtu() bytes on a gateway with several peers.
+    bool setStagingBuffer(uint8_t *buffer, size_t size);
     // Starts a handshake now instead of on the first packet.
     bool connect(int peer);
 

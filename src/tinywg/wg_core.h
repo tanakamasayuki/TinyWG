@@ -30,7 +30,7 @@ public:
 
 enum class SendResult : uint8_t {
     Sent,        // encrypted and handed to the transport
-    Queued,      // held until the handshake completes (TINYWG_STAGED_PACKET)
+    Queued,      // held until the handshake completes, then sent
     Dropped,     // no session yet and nowhere to hold it
     NoRoute,     // no peer's AllowedIPs covers the destination
     NoEndpoint,  // the peer has never been reached and has no configured endpoint
@@ -113,6 +113,12 @@ public:
     // a packet written here and passed to sendInner() is not copied again.
     // Overwritten by every call into the engine.
     uint8_t *innerBuffer() { return tx_ + 16; }
+    // The last packet sent while a peer has no session waits for the handshake.
+    // By default it waits in the send buffer, which costs no RAM but loses it
+    // when something is sent to another peer meanwhile. A buffer of mtu() bytes
+    // keeps it safe (gateways with several peers); a larger packet still waits
+    // in the send buffer. At least kMinMtu bytes; nullptr goes back.
+    bool setStagingBuffer(uint8_t *buffer, size_t size);
     // Starts a handshake with peer now (normally the first packet does).
     bool connect(int peer, uint32_t nowMs);
     // Runs the timers. Call at least every 100 ms or so.
@@ -141,6 +147,7 @@ private:
     bool initiateHandshake(Peer *p, bool retry, uint32_t nowMs);
     SendResult sendData(Peer *p, const uint8_t *packet, size_t len, uint32_t nowMs);
     void sendStaged(Peer *p, bool keepaliveIfEmpty, uint32_t nowMs);
+    uint8_t *stagingArea(size_t len);
     void addMacs(Peer *p, uint8_t *msg, size_t len, uint32_t nowMs);
     void sessionDerived(Peer *p, uint32_t nowMs);
     void handshakeComplete(Peer *p, uint32_t nowMs);
@@ -170,11 +177,13 @@ private:
     // Outgoing message buffer: data header + payload + tag. Padding never goes
     // past the MTU, so the payload is at most TINYWG_MTU.
     uint8_t tx_[16 + TINYWG_MTU + 16];
-#if TINYWG_STAGED_PACKET
+    // Handshake messages (the initiation is the largest), apart from tx_.
+    uint8_t hs_[148];
+    // The packet waiting for a handshake (setStagingBuffer()).
     int stagedPeer_;
     size_t stagedLen_;
-    uint8_t staged_[TINYWG_MTU];
-#endif
+    uint8_t *staging_ = nullptr;
+    size_t stagingSize_ = 0;
 };
 
 // Key helpers for sketches.

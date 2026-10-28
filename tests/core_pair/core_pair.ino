@@ -118,6 +118,31 @@ static size_t makeIp(uint8_t *p, const uint8_t src[4], const uint8_t dst[4], siz
     return n;
 }
 
+// A packet for a new peer waits for its handshake while A sends to B, which
+// has a session. Returns the length of what A sends the new peer once the
+// handshake completes: 32 is a bare keepalive (the waiting packet was lost).
+static size_t stagedThenOtherSend(Device &other, int index, const uint8_t ipSelf[4], const uint8_t ipOther[4],
+                                  const uint8_t *toB, size_t toBLen)
+{
+    static uint8_t p[TINYWG_MTU];
+    dropWire();
+    size_t n = makeIp(p, ipSelf, ipOther, 50);
+    if (g_dev[0].sendInner(p, n, g_now) != SendResult::Queued) return 0;
+    static Datagram init;
+    init = g_wire[0];   // the initiation to the new peer
+    dropWire();
+    if (g_dev[0].sendInner(toB, toBLen, g_now) != SendResult::Sent) return 0;
+    dropWire();
+    other.receiveOuter(init.data, init.len, Endpoint{{127, 0, 0, 1}, 1}, g_now);
+    static Datagram resp;
+    resp = g_wire[0];
+    dropWire();
+    g_dev[0].receiveOuter(resp.data, resp.len, Endpoint{{127, 0, 0, 1}, (uint16_t)(3 + index)}, g_now);
+    size_t len = g_wireCount ? g_wire[0].len : 0;
+    dropWire();
+    return len;
+}
+
 static bool sessionUp(int dev)
 {
     PeerStatus s;
@@ -336,6 +361,45 @@ void setup()
         EXPECT_TRUE("mac2 from cookie", memcmp(g_wire[0].data + 132, expect, 16) == 0);
         dropWire();
         ci.end();
+    }
+
+    // The packet waiting for a handshake sits in the send buffer by default and
+    // is lost when A sends to another peer meanwhile; a staging buffer keeps it.
+    {
+        static Device c, d;
+        static Wire cw, dw;
+        static const uint8_t ipC[4] = {10, 0, 0, 3}, ipD[4] = {10, 0, 0, 4};
+        uint8_t privC[32], pubC[32], privD[32], pubD[32];
+        generatePrivateKey(privC);
+        derivePublicKey(pubC, privC);
+        generatePrivateKey(privD);
+        derivePublicKey(pubD, privD);
+        cw.self = 1;
+        dw.self = 1;
+        c.begin(privC, &cw);
+        c.addPeer(pub[0]);
+        c.addAllowedIp(0, ipA, 32);
+        d.begin(privD, &dw);
+        d.addPeer(pub[0]);
+        d.addAllowedIp(0, ipA, 32);
+        int pc = g_dev[0].addPeer(pubC), pd = g_dev[0].addPeer(pubD);
+        g_dev[0].addAllowedIp(pc, ipC, 32);
+        g_dev[0].setEndpoint(pc, Endpoint{{127, 0, 0, 1}, (uint16_t)(3 + pc)});
+        g_dev[0].addAllowedIp(pd, ipD, 32);
+        g_dev[0].setEndpoint(pd, Endpoint{{127, 0, 0, 1}, (uint16_t)(3 + pd)});
+
+        g_dev[0].sendInner(pkt, n1, g_now);   // make sure A and B have a session
+        pump();
+        EXPECT_TRUE("staged lost by default", stagedThenOtherSend(c, pc, ipA, ipC, pkt, n1) == 32);
+        static uint8_t staging[TINYWG_MTU];
+        EXPECT_TRUE("staging buffer too small", !g_dev[0].setStagingBuffer(staging, Device::kMinMtu - 1));
+        EXPECT_TRUE("staging buffer", g_dev[0].setStagingBuffer(staging, sizeof(staging)));
+        EXPECT_TRUE("staged kept with a buffer", stagedThenOtherSend(d, pd, ipA, ipD, pkt, n1) == 16 + 80 + 16);
+        g_dev[0].setStagingBuffer(nullptr, 0);
+        g_dev[0].removePeer(pc);
+        g_dev[0].removePeer(pd);
+        c.end();
+        d.end();
     }
 
     // A rebooted A whose clock starts at 1970 again: B refuses its older
