@@ -132,6 +132,40 @@ ESP32 側は、ピアのトンネル内アドレス(`10.9.0.2/32` など)だけ�
 
 こちらの IP が変わった場合も同じです。こちらから何か送れば(persistent keepalive を含む)、相手が追従します。
 
+### エンドポイントをホスト名で指定する
+
+TinyWG は DNS を引きません。サーバーをホスト名で指定したいときは、スケッチで引いてから `setEndpoint()` に渡します。
+
+```cpp
+static const char *kServerHost = "vpn.example.com";
+
+static void resolveServer()
+{
+    IPAddress ip;
+    if (Network.hostByName(kServerHost, ip)) wg.setEndpoint(server, ip, 51820);   // Pico W は WiFi.hostByName()
+}
+
+void setup()
+{
+    // ... wg.begin()、wg.addPeer() の後
+    resolveServer();
+}
+
+void loop()
+{
+    // サーバーの IP が変わる(動的 DNS など)なら、ときどき引き直す
+    static uint32_t last = millis();
+    if (millis() - last >= 10 * 60 * 1000) {
+        last = millis();
+        resolveServer();
+    }
+}
+```
+
+- サーバーから届いた正しいパケットでも Endpoint は更新されます。引き直しが要るのは、こちらから送るのに返事がない(サーバーの IP が変わって届かない)場合です。`peerStatus()` の `lastHandshakeMs` が古くなったときだけ引き直す、という形でも構いません
+- `hostByName()` は DNS の返事を待つので、数秒止まることがあります。lwIP のコールバックの中では呼ばないでください
+- `setOuterUdp()` でモジュールの UDP を使う場合は、モジュール側の DNS を使います(W5500 の `Ethernet` ライブラリなら `DNSClient`)
+
 ## 5. 鍵の管理
 
 ### デバイスの中で鍵を作り、保存する(ESP32)

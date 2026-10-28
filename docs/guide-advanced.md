@@ -132,6 +132,40 @@ Every authenticated packet updates the peer's Endpoint to its source. When the p
 
 The same holds the other way: when this device's address changes, anything it sends (persistent keepalive included) lets the peer follow.
 
+### The endpoint by host name
+
+TinyWG does no DNS. To name the server by host name, resolve it in the sketch and pass the address to `setEndpoint()`.
+
+```cpp
+static const char *kServerHost = "vpn.example.com";
+
+static void resolveServer()
+{
+    IPAddress ip;
+    if (Network.hostByName(kServerHost, ip)) wg.setEndpoint(server, ip, 51820);   // Pico W: WiFi.hostByName()
+}
+
+void setup()
+{
+    // ... after wg.begin() and wg.addPeer()
+    resolveServer();
+}
+
+void loop()
+{
+    // When the server's address can change (dynamic DNS and the like), resolve again now and then
+    static uint32_t last = millis();
+    if (millis() - last >= 10 * 60 * 1000) {
+        last = millis();
+        resolveServer();
+    }
+}
+```
+
+- Authenticated packets from the server update the Endpoint as well. Resolving again matters when this side sends and gets no answer (the server moved and nothing reaches it). Resolving only when `lastHandshakeMs` in `peerStatus()` grows old works too
+- `hostByName()` waits for the DNS answer and can block for seconds. Do not call it inside an lwIP callback
+- With a module's UDP through `setOuterUdp()`, use the module's DNS (`DNSClient` with the W5500 `Ethernet` library)
+
 ## 5. Keys
 
 ### Generate and store the key on the device (ESP32)
