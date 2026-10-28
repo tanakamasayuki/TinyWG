@@ -79,6 +79,7 @@ private:
     static void udpReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
     static void timer(void *arg);
     void pollOuter();
+    void receive(struct pbuf *p, const tinywg::Endpoint &from);
     bool outerInBackground() const;
     void startOuter();
     void stopOuter();
@@ -100,6 +101,7 @@ private:
     struct udp_pcb *pcb_ = nullptr;
     bool up_ = false;
     UDP *outerUdp_ = nullptr;
+    struct pbuf *rxPbuf_ = nullptr;   // the outer datagram being decrypted, while it can be handed on
     bool outerFromLoop_ = false;
 #if defined(ARDUINO_ARCH_ESP32)
     void *outerTask_ = nullptr;           // TaskHandle_t

@@ -139,11 +139,11 @@ What TinyWG adds to a sketch with the same function (network, UDP send, clock). 
 | Pico W (PicoWClient) | +23.0 KB | +5.0 KB | `TinyWG` object 5008 B |
 | CH32V307 (Ch32EthernetClient) | +22.4 KB | +5.0 KB | `TinyWG` object 4992 B; 80.4 KB flash / 42.7 KB RAM in all (lwIP pools included) |
 
-RAM breakdown (`sizeof` on a 64-bit host): `Device` 4.5 KB (728 B per peer × 4, send buffer 1.45 KB, 148 B for handshake messages). A packet waiting for a handshake waits in the send buffer (`setStagingBuffer()` can give it a buffer of its own). The lwIP adapter gathers non-contiguous pbufs straight into `Device`'s send buffer and has no scratch buffer. Slightly smaller on 32-bit MCUs. On 2026-10-28 the adapter's scratch buffer (1.47 KB) and the per-peer derived keys (64 B per peer) went, and the packet waiting for a handshake moved into the send buffer, saving about 2.9 KB per board. The ESP32's extra 1.2 KB of flash is `setOuterUdp()`.
+RAM breakdown (`sizeof` on a 64-bit host): `Device` 4.5 KB (728 B per peer × 4, send buffer 1.45 KB, 148 B for handshake messages). A packet waiting for a handshake waits in the send buffer (`setStagingBuffer()` can give it a buffer of its own). The lwIP adapter gathers non-contiguous pbufs straight into `Device`'s send buffer and has no scratch buffer. When the received outer pbuf has memory of its own (PBUF_POOL / PBUF_RAM: CH32V Ethernet, arduino-pico, `setOuterUdp()`), the inner packet decrypted in place goes on to lwIP in it, with no copy. A pbuf pointing into a driver's buffer (PBUF_REF, as ESP32 Wi-Fi gives) is still copied: forwarding (NAPT) could not put a header in front of it, and the driver wants its buffer back soon. Slightly smaller on 32-bit MCUs. On 2026-10-28 the adapter's scratch buffer (1.47 KB) and the per-peer derived keys (64 B per peer) went, and the packet waiting for a handshake moved into the send buffer, saving about 2.9 KB per board. The ESP32's extra 1.2 KB of flash is `setOuterUdp()`.
 
 Flash breakdown (CH32V307): X25519 (Monocypher) about 7.2 KB, the engine about 6.5 KB, BLAKE2s about 1.7 KB, ChaCha20-Poly1305 about 1.8 KB, the lwIP adapter about 2 KB.
 
-Candidates for savings (decided by measurement): fewer peers or a smaller MTU, passing received pbufs to `ip_input` without a copy, a small and slow X25519 (about 5 KB less flash, X25519 several times slower; if ever, chosen at link time, not by a build setting).
+Candidates for savings (decided by measurement): fewer peers or a smaller MTU, a small and slow X25519 (about 5 KB less flash, X25519 several times slower; if ever, chosen at link time, not by a build setting).
 
 ### 5.2 Measurements on hardware (2026-10-27, `tests/bench_crypto`, Arduino's default optimisation)
 

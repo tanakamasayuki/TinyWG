@@ -213,7 +213,8 @@ void TinyWG::pollOuter()
     for (int n; (n = outerUdp_->parsePacket()) > 0;) {
         if (n > 0xFFFF) continue;   // the rest is dropped by the next parsePacket()
         lock();
-        struct pbuf *q = pbuf_alloc(PBUF_RAW, (u16_t)n, PBUF_RAM);
+        // PBUF_LINK: room in front, as the packet may be handed on (deliverInner()) and forwarded.
+        struct pbuf *q = pbuf_alloc(PBUF_LINK, (u16_t)n, PBUF_RAM);
         unlock();
         if (!q) continue;
         uint8_t *data = static_cast<uint8_t *>(q->payload);
@@ -221,8 +222,8 @@ void TinyWG::pollOuter()
         IPAddress ip = outerUdp_->remoteIP();
         tinywg::Endpoint from = {{ip[0], ip[1], ip[2], ip[3]}, outerUdp_->remotePort()};
         lock();
-        if (got == n) device_.receiveOuter(data, (size_t)n, from, millis());
-        pbuf_free(q);
+        if (got == n) receive(q, from);
+        else pbuf_free(q);
         unlock();
     }
     for (;;) {
@@ -305,19 +306,33 @@ void TinyWG::udpReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
 {
     (void)pcb;
     TinyWG *self = static_cast<TinyWG *>(arg);
-    if (IP_IS_V4(addr) && p->len != p->tot_len) {
+    if (!IP_IS_V4(addr)) {
+        pbuf_free(p);
+        return;
+    }
+    if (p->len != p->tot_len) {
         // Rare: a chain. Make it one contiguous pbuf, as the engine decrypts in place.
-        struct pbuf *q = pbuf_clone(PBUF_RAW, PBUF_RAM, p);
+        struct pbuf *q = pbuf_clone(PBUF_LINK, PBUF_RAM, p);
         pbuf_free(p);
         p = q;
         if (!p) return;
     }
-    if (IP_IS_V4(addr)) {
-        const ip4_addr_t *a = ip_2_ip4(addr);
-        tinywg::Endpoint from = {{ip4_addr1(a), ip4_addr2(a), ip4_addr3(a), ip4_addr4(a)}, port};
-        self->device_.receiveOuter(static_cast<uint8_t *>(p->payload), p->tot_len, from, millis());
-    }
-    pbuf_free(p);
+    const ip4_addr_t *a = ip_2_ip4(addr);
+    self->receive(p, {{ip4_addr1(a), ip4_addr2(a), ip4_addr3(a), ip4_addr4(a)}, port});
+}
+
+// Decrypts the contiguous outer datagram p in place and frees it, unless
+// deliverInner() handed it on to lwIP as the inner packet.
+void TinyWG::receive(struct pbuf *p, const tinywg::Endpoint &from)
+{
+    // A pbuf over memory of its own can carry the inner packet on. Not one that
+    // points into a driver's buffer (ESP32 Wi-Fi): lwIP could not put a link
+    // header in front to forward it, and the driver wants its buffer back.
+    bool own = p->next == nullptr && p->ref == 1 && (p->type_internal & PBUF_TYPE_FLAG_STRUCT_DATA_CONTIGUOUS);
+    rxPbuf_ = own ? p : nullptr;
+    device_.receiveOuter(static_cast<uint8_t *>(p->payload), p->tot_len, from, millis());
+    if (rxPbuf_ || !own) pbuf_free(p);
+    rxPbuf_ = nullptr;
 }
 
 void TinyWG::timer(void *arg)
@@ -354,9 +369,20 @@ void TinyWG::sendOuter(const tinywg::Endpoint &to, const uint8_t *data, size_t l
 void TinyWG::deliverInner(int peer, uint8_t *packet, size_t len)
 {
     (void)peer;
+    struct pbuf *q = rxPbuf_;
+    uint8_t *payload = q ? static_cast<uint8_t *>(q->payload) : nullptr;
+    if (q && packet >= payload && packet + len <= payload + q->len) {
+        // No copy: the outer pbuf, trimmed to the inner packet. The headers
+        // removed in front leave room for a link header.
+        rxPbuf_ = nullptr;
+        pbuf_remove_header(q, (size_t)(packet - payload));
+        pbuf_realloc(q, (u16_t)len);
+        if (netif_.input(q, &netif_) != ERR_OK) pbuf_free(q);
+        return;
+    }
     // Room for a link header in front: a packet that lwIP forwards (NAPT) goes
     // out on Wi-Fi or Ethernet as it is, and cannot grow a header otherwise.
-    struct pbuf *q = pbuf_alloc(PBUF_LINK, (u16_t)len, PBUF_RAM);
+    q = pbuf_alloc(PBUF_LINK, (u16_t)len, PBUF_RAM);
     if (!q) return;
     pbuf_take(q, packet, (u16_t)len);
     if (netif_.input(q, &netif_) != ERR_OK) pbuf_free(q);

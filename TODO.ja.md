@@ -31,7 +31,7 @@
 | ESP32 / ESP32-S3 の Wi-Fi 切断(`board_responder/test_board_wifi.py`) | 5 秒の切断のあと同じ鍵で復帰、切断中に始めたハンドシェイクが再接続後の再送で成立、PC 側のポート変更にボードが追従 |
 | PC → ESP32 / ESP32-S3 / CH32V307(`board_responder`) | ESP32 系は家庭用 AP 経由、CH32V307 は Ethernet。ハンドシェイク往復 94 / 100 / 106 ms、ping 約 3 / 3 / 1 ms、UDP echo 100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否 |
 | arduino-pico 6.3.1(Pico W / Pico 2 W) | ビルドのみ |
-| `CookieGuard` を入れたあとの実機 | 未実施(host と kernel_interop のみ)。リリース前のフルテストで確かめる |
+| `CookieGuard` と受信のゼロコピー化を入れたあとの実機 | ESP32 と CH32V307 の `board_responder` 3 モードが通過(CH32V307 は lwIP のタイマーで回す `setOuterUdp()` も)。`CookieGuard` 自体は host と kernel_interop のみ |
 | CH32V307(ArduinoCore-CH32RV 0.4.0、96 MHz) | 実機で `smoke` / `crypto_vectors` / `core_pair` / `bench_crypto` / `board_responder`(Ethernet)通過(X25519 24 ms、レスポンダのハンドシェイク処理 103 ms) |
 
 ## 残っている作業
@@ -45,11 +45,9 @@
 - [ ] ESP32 で MQTT ブローカーを動かすゲートウェイのサンプル(SPEC の Phase 4)
 - [ ] `setOuterUdp()` を W5500 の実機で確かめる(サンプル `Esp32W5500Client` はビルドのみ)。今は ESP32 の `WiFiUDP` を外側にした試験だけ。W5500 の実機は手元にあるが未接続
 - [ ] SIM7080G(AT コマンドの UDP)で `setOuterUdp()` を使う。Arduino の `UDP` を実装したクラスが要る
-- [ ] `setOuterUdp()` の CH32V307 実機での確認(lwIP のタイマーで回す方式。ビルドのみ確認)
 - [ ] lwIP 経由の W5500(ESP32 の `ETH`、arduino-pico の `W5500lwIP`)での wg0 の実機確認
 
 ### 最適化の候補(実測を見て判断。SPEC §5.1)
-- [ ] 受信した pbuf を `ip_input` にそのまま渡すゼロコピー化(アライメントの確認が必要)
 - [ ] (見送り中)小さく遅い X25519(Flash 約 5 KB 減、X25519 が数倍遅い)。Flash が足りないボードが出たら、リンクで選ぶ形で検討する
 - [ ] 既定値(ピア数、リプレイ防止の窓)を実機の数値をもとに決める
 
