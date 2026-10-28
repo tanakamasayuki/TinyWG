@@ -31,10 +31,11 @@
 ### 機能
 - [ ] arduino-pico の FreeRTOS モード対応(今はコンパイルエラーで止めている。lwIP 専用タスクへ処理を投げる形が必要)
 - [ ] Cookie Reply の送信(高負荷時の DoS 対策)。今は受信のみ
-- [ ] エンドポイントをホスト名で指定(DNS)
 - [ ] `wg-quick` 形式の設定テキストの読み込み(フットプリントを見て判断)
 - [ ] ESP32 で MQTT ブローカーを動かすゲートウェイのサンプル(SPEC の Phase 4)
-- [ ] `setOuterUdp()` を W5500(`Ethernet` ライブラリ)と SIM7080G(AT コマンドの UDP)の実機で確かめ、サンプルを作る。今は ESP32 の `WiFiUDP` を外側にした試験だけ。W5500 の実機は手元にあるが未接続
+- [ ] `setOuterUdp()` を W5500 の実機で確かめる(サンプル `Esp32W5500Client` はビルドのみ)。今は ESP32 の `WiFiUDP` を外側にした試験だけ。W5500 の実機は手元にあるが未接続
+- [ ] SIM7080G(AT コマンドの UDP)で `setOuterUdp()` を使う。Arduino の `UDP` を実装したクラスが要る
+- [ ] ガイドに、エンドポイントのホスト名をスケッチ側で解決する例(`hostByName()` → `setEndpoint()`、ときどき引き直す)を足す。ライブラリには DNS を入れない
 - [ ] `setOuterUdp()` の CH32V307 実機での確認(lwIP のタイマーで回す方式。ビルドのみ確認)
 - [ ] lwIP 経由の W5500(ESP32 の `ETH`、arduino-pico の `W5500lwIP`)での wg0 の実機確認
 

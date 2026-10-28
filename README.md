@@ -31,6 +31,7 @@ Some uses:
 |---|---|
 | [`Esp32Client`](examples/Esp32Client/README.md) | An ESP32 connects to a WireGuard server and sends UDP through the tunnel every 5 s |
 | [`Esp32Server`](examples/Esp32Server/README.md) | An ESP32 is a WireGuard server for two peers, with a TCP echo server reachable only through the tunnel |
+| [`Esp32W5500Client`](examples/Esp32W5500Client/README.md) | An ESP32 with a W5500 on Arduino's `Ethernet` library connects; `wg0` stays in lwIP and only the outer UDP goes through the W5500 (`setOuterUdp()`) |
 | [`Ch32EthernetClient`](examples/Ch32EthernetClient/README.md) | The same as `Esp32Client` from a CH32V over Ethernet |
 | [`PicoWClient`](examples/PicoWClient/README.md) | The same as `Esp32Client` from a Pico W / Pico 2 W |
 
