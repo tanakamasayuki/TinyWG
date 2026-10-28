@@ -92,6 +92,35 @@ wg.setPersistentKeepalive(p, 25);     // optional
 - `setRandom()`, `setWallClock()` and `setMtu()` survive `begin()` / `end()`
 - `setPersistentKeepalive()` sends one keepalive right away, as Linux does. With no session and an Endpoint, that starts a handshake
 
+### From wg-quick text
+
+`begin()` and the peers can come from configuration text in the format of `wg-quick` and the official apps, in one call.
+
+```cpp
+static const char *kConfig = R"(
+[Interface]
+PrivateKey = <this device's private key>
+Address = 10.9.0.2/24
+ListenPort = 51820
+
+[Peer]
+PublicKey = <the server's public key>
+AllowedIPs = 10.9.0.0/24
+Endpoint = 192.168.1.10:51820
+PersistentKeepalive = 25
+)";
+
+int errorLine;
+if (!wg.beginConfig(kConfig, &errorLine)) Serial.printf("config error at line %d\n", errorLine);
+```
+
+- Read: `PrivateKey`, `Address` (required by `TinyWG`), `ListenPort` and `MTU` under `[Interface]`; `PublicKey`, `PresharedKey`, `AllowedIPs`, `Endpoint` and `PersistentKeepalive` under `[Peer]`
+- IPv6 addresses and AllowedIPs are skipped; `DNS`, `Table`, `PostUp` and the like are ignored. A configuration made by a phone app can be passed as it is
+- `Endpoint` must be an IPv4 address and port. Resolve a host name in the sketch, as in §4
+- On failure it returns false with the offending line in `errorLine` (0: no `PrivateKey` or `Address`, or `begin()` failed). Whatever was set up by then is undone with `end()`
+- With `TinyWGUdp` it is `wg.beginConfig(udp, kConfig, &errorLine)` (no `Address` needed)
+- A sketch that never calls it does not link the parser (calling it costs about 3.4 KB of flash on an ESP32)
+
 ## 4. Routing
 
 ### AllowedIPs (cryptokey routing)

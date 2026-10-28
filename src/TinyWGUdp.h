@@ -17,6 +17,9 @@ public:
     bool begin(UDP &udp, uint16_t listenPort, const char *privateKeyBase64);
     bool begin(UDP &udp, uint16_t listenPort, const uint8_t privateKey[32]);
     void end();
+    // begin() and the peers from wg-quick style text, as TinyWG::beginConfig();
+    // Address is not needed here. Not linked unless called.
+    bool beginConfig(UDP &udp, const char *text, int *errorLine = nullptr);
 
     void onPacket(PacketHandler handler, void *context = nullptr);
     // Sends one inner IPv4 packet; the peer is chosen from AllowedIPs.

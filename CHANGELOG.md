@@ -23,6 +23,8 @@
 - (JA) tinywg::CookieGuard: ハンドシェイクの洪水に対し、負荷が高いときに Cookie Reply で応じる(ホワイトペーパー §5.4.7)。setCookieGuard() で付け、使わなければリンクされない。Stats に cookiesSent と rxUnderLoad を追加。
 - (EN) The lwIP adapter hands a received pbuf with memory of its own (CH32V Ethernet, arduino-pico, setOuterUdp()) on to lwIP as the inner packet, with no copy.
 - (JA) lwIP アダプタは、自分のメモリを持つ受信 pbuf(CH32V の Ethernet、arduino-pico、setOuterUdp())を、コピーせずに内側のパケットとして lwIP に渡す。
+- (EN) beginConfig(): begin() and the peers from wg-quick text, for TinyWG and TinyWGUdp; not linked unless called.
+- (JA) beginConfig(): wg-quick 形式のテキストから begin() とピアの登録まで行う(TinyWG と TinyWGUdp)。呼ばなければリンクされない。
 - (EN) Esp32W5500Client example: a W5500 on Arduino's Ethernet library as the outer side.
 - (JA) Esp32W5500Client サンプル: Arduino の Ethernet ライブラリで動かす W5500 を外側に使う。
 - (EN) Tests: board_responder and board_pair run with each outer mode; board_pair over the full product of boards (--profiles=all --peer-profiles=all).

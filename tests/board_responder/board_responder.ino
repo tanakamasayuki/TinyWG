@@ -8,6 +8,7 @@
 // The board prints NET_OK <ip> (or NET_ERROR <why>) once the network is up.
 // Serial commands (one line each):
 //   CFG <private> <peer public> [<psk>]   start wg0 with these keys (repeatable)
+//   CONF ... END                          the same from the wg-quick text in between (beginConfig)
 //   CONNECT                               start a handshake from the board
 //   KEEPALIVE <seconds>                   persistent keepalive (0 = off)
 //   MTU <bytes>                           wg0's MTU at run time
@@ -96,6 +97,26 @@ static void configure(char *line)
     out(" port=51820 peer=%d\n", peer);
 }
 
+// Lines between CONF and END, for beginConfig().
+static char conf[1024];
+static size_t confLen;
+static bool inConf;
+
+static void endConf()
+{
+    inConf = false;
+    conf[confLen] = '\0';
+    int errorLine = 0;
+    if (!wg.beginConfig(conf, &errorLine)) {
+        out("DUT-ERROR config line=%d\n", errorLine);
+        return;
+    }
+    peer = 0;
+    Serial.print("DUT-READY ip=");
+    Serial.print(localIP());
+    out(" port=51820 peer=%d mtu=%u\n", peer, (unsigned)wg.mtu());
+}
+
 // The drop runs in the background: commands still work while the board is
 // off the AP, wg0 stays up and its timers keep running, and every packet to
 // the outside fails to leave. loop() joins again when the time is up.
@@ -130,7 +151,23 @@ static void wifiRejoin()
 
 static void command(char *line)
 {
-    if (strncmp(line, "CFG ", 4) == 0) {
+    if (inConf) {
+        if (strcmp(line, "END") == 0) {
+            endConf();
+        } else {
+            size_t n = strlen(line);
+            if (confLen + n + 1 < sizeof(conf)) {
+                memcpy(conf + confLen, line, n);
+                confLen += n;
+                conf[confLen++] = '\n';
+            }
+        }
+        return;
+    }
+    if (strcmp(line, "CONF") == 0) {
+        inConf = true;
+        confLen = 0;
+    } else if (strncmp(line, "CFG ", 4) == 0) {
         configure(line);
     } else if (strcmp(line, "CONNECT") == 0) {
         out("CONNECT %d\n", wg.connect(peer) ? 1 : 0);
@@ -233,7 +270,7 @@ void loop()
         if (c == '\r') continue;
         if (c == '\n') {
             line[len] = '\0';
-            if (len) command(line);
+            if (len || inConf) command(line);
             len = 0;
         } else if (len + 1 < sizeof(line)) {
             line[len++] = (char)c;

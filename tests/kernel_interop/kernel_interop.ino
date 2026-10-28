@@ -9,6 +9,7 @@
 //   CFG <private> <peer public> <listen port> <peer port, 0 = none> [<psk>]
 //   HELLO        send the hello datagram
 //   GUARD <n>    a CookieGuard under load above n handshakes a second; -1 removes it
+//   CONF ... END the lines between are wg-quick text for beginConfig()
 //   STATS        print the drop counters
 
 #include <WiFi.h>
@@ -115,8 +116,50 @@ static void configure(char *line)
     Serial.printf("DUT-READY peer=%d pub=%s\n", peer, pub);
 }
 
+// Lines between CONF and END, for beginConfig().
+static char conf[1024];
+static size_t confLen;
+static bool inConf;
+
+static void endConf()
+{
+    inConf = false;
+    conf[confLen] = '\0';
+    int errorLine = 0;
+    configured = wg.beginConfig(udp, conf, &errorLine);
+    if (!configured) {
+        Serial.printf("DUT-ERROR config line=%d\n", errorLine);
+        return;
+    }
+    wg.addAllowedIp(0, IPAddress(10, 9, 0, 0), 24);   // as CFG does (an extra, wider entry)
+    wg.onPacket(onPacket);
+    char pub[45];
+    wg.publicKey(pub);
+    tinywg::PeerStatus s;
+    wg.peerStatus(0, &s);
+    Serial.printf("DUT-READY peer=0 pub=%s mtu=%u endpoint_port=%u\n", pub, (unsigned)wg.mtu(), (unsigned)s.endpoint.port);
+}
+
 static void command(char *line)
 {
+    if (inConf) {
+        if (strcmp(line, "END") == 0) {
+            endConf();
+        } else {
+            size_t n = strlen(line);
+            if (confLen + n + 1 < sizeof(conf)) {
+                memcpy(conf + confLen, line, n);
+                confLen += n;
+                conf[confLen++] = '\n';
+            }
+        }
+        return;
+    }
+    if (strcmp(line, "CONF") == 0) {
+        inConf = true;
+        confLen = 0;
+        return;
+    }
     if (strncmp(line, "CFG ", 4) == 0) {
         configure(line);
     } else if (strcmp(line, "HELLO") == 0) {
@@ -155,7 +198,7 @@ void loop()
         if (c == '\r') continue;
         if (c == '\n') {
             line[len] = '\0';
-            if (len) command(line);
+            if (len || inConf) command(line);
             len = 0;
         } else if (len + 1 < sizeof(line)) {
             line[len++] = (char)c;

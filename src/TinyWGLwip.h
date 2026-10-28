@@ -37,6 +37,13 @@ public:
     bool begin(const IPAddress &localIp, const IPAddress &subnet, const uint8_t privateKey[32],
                uint16_t listenPort = 51820);
     void end();
+    // begin() and the peers from wg-quick style text ([Interface] PrivateKey,
+    // Address, ListenPort, MTU; [Peer] PublicKey, PresharedKey, AllowedIPs,
+    // Endpoint, PersistentKeepalive). IPv6 entries are skipped, other keys
+    // ignored; an Endpoint must be an IPv4 address. false with *errorLine set to
+    // the offending line (0: PrivateKey or Address missing, or begin() failed).
+    // Not linked unless called.
+    bool beginConfig(const char *text, int *errorLine = nullptr);
 
     // Sends and receives the outer datagrams through udp, opened on the listen
     // port by begin(). Call before begin(); nullptr goes back to lwIP's own UDP.

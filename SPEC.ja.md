@@ -105,7 +105,7 @@ wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がト�
 ### 4.3 設定
 
 - API による鍵・ピア設定
-- `wg-quick` 形式テキスト(`[Interface]` / `[Peer]`)のパース `TBD`(フットプリント次第)
+- `wg-quick` 形式テキスト(`[Interface]` / `[Peer]`)から設定する `beginConfig()`。呼ばなければリンクされない(呼ぶと ESP32 で Flash 約 3.4 KB)。IPv6 の項目は飛ばし、`Endpoint` は IPv4 のみ
 - 鍵は Base64 で受け付ける
 
 ### 4.4 時刻(TAI64N)

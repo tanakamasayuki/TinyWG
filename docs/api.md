@@ -80,6 +80,7 @@ Derives from `TinyWGBase`. Available on cores with lwIP (ESP32, arduino-pico, CH
 | `bool begin(const IPAddress &localIp, const IPAddress &subnet, const char *privateKeyBase64, uint16_t listenPort = 51820)` | success | Brings up `wg0` and opens the outer UDP port. Traffic for the `localIp` / `subnet` range goes into `wg0`. `listenPort` 0 picks a free port (for clients). Clears the peer table and the counters. false for a malformed key string, no random source, or a port that cannot be opened |
 | `bool begin(const IPAddress &localIp, const IPAddress &subnet, const uint8_t privateKey[32], uint16_t listenPort = 51820)` | same | Key as bytes |
 | `void end()` | | Closes `wg0` and the port and wipes the keys |
+| `bool beginConfig(const char *text, int *errorLine = nullptr)` | success | `begin()` and the peers from wg-quick text. The failing line goes to `errorLine` (0: no `PrivateKey` / `Address`, or `begin()` failed). Not linked unless called. [Advanced guide §3](guide-advanced.md#from-wg-quick-text) |
 | `bool setMtu(uint16_t mtu)` | success | `TinyWGBase::setMtu()`, and `wg0`'s MTU as well |
 | `struct netif *netif()` | `wg0` | For routing or NAPT set up by the sketch |
 | `bool enableNapt(bool enable = true)` | success | ESP32 only (when `IP_NAPT` is on). NAPT for traffic that peers send into `wg0` and that leaves by another interface. Call after `begin()` |
@@ -97,6 +98,7 @@ Derives from `TinyWGBase`. Works on any core.
 | `bool begin(UDP &udp, uint16_t listenPort, const char *privateKeyBase64)` | success | Opens `udp` on `listenPort` and starts. Clears the peer table and the counters |
 | `bool begin(UDP &udp, uint16_t listenPort, const uint8_t privateKey[32])` | same | Key as bytes |
 | `void end()` | | Closes `udp` and wipes the keys |
+| `bool beginConfig(UDP &udp, const char *text, int *errorLine = nullptr)` | success | As `TinyWG::beginConfig()`; `Address` is not used |
 | `void onPacket(PacketHandler handler, void *context = nullptr)` | | Registers the function that receives decrypted inner IPv4 packets |
 | `tinywg::SendResult send(const uint8_t *packet, size_t len)` | [`SendResult`](#sendresult) | Sends one inner IPv4 packet; the peer is chosen by destination and AllowedIPs |
 | `void update()` | | Handles received datagrams and runs the timers. Call from `loop()`, no more than 100 ms apart |

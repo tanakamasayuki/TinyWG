@@ -129,6 +129,45 @@ def cookie_reply(dut, kernel):
         dut.expect("GUARD -1", timeout=5)
 
 
+def config_text(dut, kernel):
+    """The DUT configured from wg-quick text (TinyWGUdp::beginConfig) talks to the kernel,
+    in both directions; IPv6 entries, comments and unknown keys are skipped."""
+    priv, pub = keypair()
+    kernel.up(pub)   # the kernel has no endpoint for the DUT: the DUT starts
+    text = f"""
+# made by a phone app, more or less
+[Interface]
+PrivateKey = {priv}
+Address = 10.9.0.2/24, fd00::2/64
+ListenPort = {DUT_PORT}
+MTU = 1380
+DNS = 10.9.0.1
+
+[Peer]
+PublicKey = {kernel.public_key}
+AllowedIPs = 10.9.0.1/32, fd00::1/128
+Endpoint = 127.0.0.1:{KERNEL_PORT}
+PersistentKeepalive = 25
+"""
+    dut.write("CONF\n")
+    for line in text.splitlines():
+        dut.write(line + "\n")
+    dut.write("END\n")
+    m = dut.expect(re.compile(rb"DUT-READY peer=0 pub=(\S+) mtu=(\d+) endpoint_port=(\d+)\r?\n"), timeout=10)
+    assert m.group(1).decode() == pub
+    assert int(m.group(2)) == 1380 and int(m.group(3)) == KERNEL_PORT
+    deadline = time.monotonic() + 10   # PersistentKeepalive starts the handshake from the DUT
+    while kernel.latest_handshake() == 0 and time.monotonic() < deadline:
+        time.sleep(0.2)
+    assert kernel.latest_handshake() > 0, "no handshake from the DUT"
+    assert udp_echo(b"from-config") == b"from-config"
+
+    # A malformed line is reported by number, and nothing is left running.
+    dut.write("CONF\n[Interface]\nPrivateKey = {}\n[Peer]\nPublicKey = {}\nEndpoint = vpn.example.com:51820\nEND\n".format(priv, kernel.public_key))
+    m = dut.expect(re.compile(rb"DUT-ERROR config line=(\d+)\r?\n"), timeout=10)
+    assert int(m.group(1)) == 5, m.group(0)
+
+
 def burst(dut, kernel):
     """Many packets in a row: counters, replay window and padding over a long run."""
     configure(dut, kernel, peer_port=0)
@@ -161,7 +200,8 @@ def burst(dut, kernel):
     assert len(got) == sent, f"{len(got)}/{sent} echoes"
 
 
-SCENARIOS = [kernel_initiates, ping, full_mtu, dut_initiates, preshared_key, wrong_preshared_key, burst, cookie_reply]
+SCENARIOS = [kernel_initiates, ping, full_mtu, dut_initiates, preshared_key, wrong_preshared_key, burst, cookie_reply,
+             config_text]
 
 
 def test_kernel_interop(dut, record_property):

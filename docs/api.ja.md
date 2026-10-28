@@ -80,6 +80,7 @@
 | `bool begin(const IPAddress &localIp, const IPAddress &subnet, const char *privateKeyBase64, uint16_t listenPort = 51820)` | 成否 | `wg0` を立ち上げ、外側の UDP ポートを開く。`localIp` / `subnet` の範囲宛ての通信が `wg0` に流れる。`listenPort` を 0 にすると、空いているポートを使う(クライアント向け)。ピアの表と統計は消える。false になるのは、鍵の文字列が不正、乱数源がない、ポートが使えないとき |
 | `bool begin(const IPAddress &localIp, const IPAddress &subnet, const uint8_t privateKey[32], uint16_t listenPort = 51820)` | 同上 | 鍵をバイト列で渡す版 |
 | `void end()` | | `wg0` とポートを閉じ、鍵を消去する |
+| `bool beginConfig(const char *text, int *errorLine = nullptr)` | 成否 | wg-quick 形式のテキストから `begin()` とピアの登録までを行う。失敗した行を `errorLine` に返す(0 は `PrivateKey` / `Address` がない、または `begin()` の失敗)。呼ばなければリンクされない。[上級者ガイド §3](guide-advanced.ja.md#wg-quick-形式のテキストから設定する) |
 | `bool setMtu(uint16_t mtu)` | 成否 | `TinyWGBase::setMtu()` に加えて、`wg0` の MTU も変える |
 | `struct netif *netif()` | `wg0` | 経路や NAPT を自分で設定するとき |
 | `bool enableNapt(bool enable = true)` | 成否 | ESP32 のみ(`IP_NAPT` が有効なとき)。ピアから `wg0` に入り、ほかのインターフェースへ出ていく通信を NAPT で中継する。`begin()` の後で呼ぶ |
@@ -97,6 +98,7 @@
 | `bool begin(UDP &udp, uint16_t listenPort, const char *privateKeyBase64)` | 成否 | `udp` を `listenPort` で開いて始める。ピアの表と統計は消える |
 | `bool begin(UDP &udp, uint16_t listenPort, const uint8_t privateKey[32])` | 同上 | 鍵をバイト列で渡す版 |
 | `void end()` | | `udp` を閉じ、鍵を消去する |
+| `bool beginConfig(UDP &udp, const char *text, int *errorLine = nullptr)` | 成否 | `TinyWG::beginConfig()` と同じ。`Address` は使わない |
 | `void onPacket(PacketHandler handler, void *context = nullptr)` | | 復号した内側の IPv4 パケットを受け取る関数を登録する |
 | `tinywg::SendResult send(const uint8_t *packet, size_t len)` | [`SendResult`](#sendresult) | 内側の IPv4 パケットを 1 つ送る。送り先は宛先アドレスと AllowedIPs で決まる |
 | `void update()` | | 受信したデータグラムを処理し、タイマーを進める。`loop()` から、100 ms より長く空けずに呼ぶ |

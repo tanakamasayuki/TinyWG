@@ -92,6 +92,35 @@ wg.setPersistentKeepalive(p, 25);     // 任意
 - `setRandom()`、`setWallClock()`、`setMtu()` の設定は、`begin()` / `end()` をまたいで残ります
 - `setPersistentKeepalive()` は、設定した時点で keepalive を 1 つ送ります(Linux と同じ)。セッションがなく Endpoint があれば、ハンドシェイクが始まります
 
+### wg-quick 形式のテキストから設定する
+
+`wg-quick` や公式アプリと同じ形式の設定テキストから、`begin()` とピアの登録までを一度に行えます。
+
+```cpp
+static const char *kConfig = R"(
+[Interface]
+PrivateKey = <このデバイスの秘密鍵>
+Address = 10.9.0.2/24
+ListenPort = 51820
+
+[Peer]
+PublicKey = <サーバーの公開鍵>
+AllowedIPs = 10.9.0.0/24
+Endpoint = 192.168.1.10:51820
+PersistentKeepalive = 25
+)";
+
+int errorLine;
+if (!wg.beginConfig(kConfig, &errorLine)) Serial.printf("config error at line %d\n", errorLine);
+```
+
+- 読む項目:`[Interface]` の `PrivateKey`、`Address`(`TinyWG` では必須)、`ListenPort`、`MTU`。`[Peer]` の `PublicKey`、`PresharedKey`、`AllowedIPs`、`Endpoint`、`PersistentKeepalive`
+- IPv6 のアドレスと AllowedIPs は飛ばします。`DNS`、`Table`、`PostUp` などは無視します。スマートフォンのアプリが作った設定も、そのまま渡せます
+- `Endpoint` は IPv4 のアドレスとポートだけです。ホスト名は §4 のとおりスケッチで解決してください
+- 失敗すると false を返し、`errorLine` に問題の行番号が入ります(0 は、`PrivateKey` や `Address` がない、または `begin()` に失敗)。途中まで進んでいても `end()` して戻ります
+- `TinyWGUdp` では `wg.beginConfig(udp, kConfig, &errorLine)` です(`Address` は使いません)
+- 呼ばないスケッチには、この読み込みの処理はリンクされません(呼ぶと ESP32 で Flash 約 3.4 KB)
+
 ## 4. ルーティング
 
 ### AllowedIPs(クリプトキールーティング)

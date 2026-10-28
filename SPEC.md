@@ -105,7 +105,7 @@ When the endpoint itself would be routed into wg0 (the outer UDP entering the tu
 ### 4.3 Configuration
 
 - Keys and peers set through the API
-- Parsing `wg-quick` text (`[Interface]` / `[Peer]`) `TBD` (depends on the footprint)
+- `beginConfig()` sets up from `wg-quick` text (`[Interface]` / `[Peer]`). Not linked unless called (about 3.4 KB of flash on an ESP32 when called). IPv6 entries are skipped; `Endpoint` is IPv4 only
 - Keys accepted in Base64
 
 ### 4.4 Time (TAI64N)
