@@ -41,7 +41,6 @@
 
 ### 機能
 - [ ] arduino-pico の FreeRTOS モード対応(今はコンパイルエラーで止めている。lwIP 専用タスクへ処理を投げる形が必要)
-- [ ] ESP32 で MQTT ブローカーを動かすゲートウェイのサンプル(SPEC の Phase 4)
 - [ ] `setOuterUdp()` を W5500 の実機で確かめる(サンプル `Esp32W5500Client` はビルドのみ)。今は ESP32 の `WiFiUDP` を外側にした試験だけ。W5500 の実機は手元にあるが未接続
 - [ ] SIM7080G(AT コマンドの UDP)で `setOuterUdp()` を使う。Arduino の `UDP` を実装したクラスが要る
 - [ ] lwIP 経由の W5500(ESP32 の `ETH`、arduino-pico の `W5500lwIP`)での wg0 の実機確認

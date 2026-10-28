@@ -184,7 +184,7 @@ PCMFlowUDP のテスト構成(pytest-embedded + Arduino CLI、`TEST done N/M` �
 - Phase 1: 済み。host 上でペア試験と Linux カーネル WireGuard との相互接続試験(イニシエータ / レスポンダ両方)が通っている
 - Phase 2: ESP32 / ESP32-S3 の実機で動作確認済み(単体テスト、計測、ボード 2 台での TCP、PC からボードへの接続試験 `board_responder`)
 - Phase 3: CH32V307 は実機で単体テスト、計測、Ethernet 越しの `board_responder` と長時間試験が通過。arduino-pico(RP2040 / RP2350)はビルドのみ
-- Phase 4: ESP32 の NAPT 連携(`enableNapt()`)は実機で確認済み(`board_responder` で、トンネル越しに LAN のルーターへ ping と DNS)。MQTT ブローカーの例は未着手
+- Phase 4: ESP32 の NAPT 連携(`enableNapt()`)は実機で確認済み(`board_responder` で、トンネル越しに LAN のルーターへ ping と DNS)。MQTT ブローカーの例は作らない(lwIP 上のブローカーならどれでも wg0 で待ち受けられる、と初心者ガイドに記載)
 
 1. **Phase 0 — 実測**: 暗号プリミティブ単体を各ターゲットでビルドし、Flash/RAM・X25519 時間・ChaChaPoly スループットを計測。外側 UDP 方式(`udp_pcb` 直 / Arduino `UDP&`)の比較
 2. **Phase 1 — WG Core**: host 上でハンドシェイク・セッション・タイマーを実装し、Python ピアと相互接続

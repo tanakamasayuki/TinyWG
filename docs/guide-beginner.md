@@ -230,6 +230,8 @@ Once connected, run `nc 10.9.0.1 7` on the PC. What you type comes back.
 
 TinyWG's `wg0` is an ordinary network interface. MQTT clients such as `PubSubClient`, and HTTP clients and servers, go through the tunnel when you point them at a tunnel address.
 
+An ESP32 can also be the gateway that is WireGuard server and MQTT broker at once. Any broker library that listens on lwIP (opening port 1883 with `WiFiServer` or the like) accepts connections on the tunnel address (`10.9.0.1` with `Esp32Server`). Devices beyond the tunnel just name that address as their broker. With several peers, give it `setStagingBuffer()` too ([advanced guide §9](guide-advanced.md#9-timers-and-behaviour)).
+
 ## 11. Troubleshooting
 
 First print the counters:

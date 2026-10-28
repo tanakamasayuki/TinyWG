@@ -184,7 +184,7 @@ Progress (2026-10-27):
 - Phase 1: done. Pair tests on the host and interop with the Linux kernel WireGuard (as initiator and as responder) pass
 - Phase 2: verified on ESP32 / ESP32-S3 hardware (unit tests, measurements, TCP between two boards, PC-to-board tests `board_responder`)
 - Phase 3: the CH32V307 passes the unit tests, the measurements, `board_responder` over Ethernet and the long run on hardware. arduino-pico (RP2040 / RP2350) build only
-- Phase 4: ESP32 NAPT (`enableNapt()`) verified on hardware (`board_responder`: ping and DNS to the LAN router through the tunnel). The MQTT broker example not started
+- Phase 4: ESP32 NAPT (`enableNapt()`) verified on hardware (`board_responder`: ping and DNS to the LAN router through the tunnel). No MQTT broker example (any broker on lwIP listens on wg0, as the beginner's guide says)
 
 1. **Phase 0 — measure**: build the crypto primitives alone for each target; measure flash/RAM, X25519 time and ChaChaPoly throughput. Compare the outer UDP options (`udp_pcb` directly / Arduino `UDP&`)
 2. **Phase 1 — WG Core**: handshake, sessions and timers on the host, interop with the Python peer
