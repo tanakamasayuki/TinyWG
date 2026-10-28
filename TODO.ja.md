@@ -1,6 +1,6 @@
 # TODO / 引き継ぎメモ
 
-最終更新: 2026-10-27。仕様と計測値は [SPEC.ja.md](SPEC.ja.md)、テストの詳細は [tests/README.ja.md](tests/README.ja.md) にあります。
+最終更新: 2026-10-28。仕様と計測値は [SPEC.ja.md](SPEC.ja.md)、テストの詳細は [tests/README.ja.md](tests/README.ja.md) にあります。
 
 ## 現状
 
@@ -34,6 +34,8 @@
 - [ ] エンドポイントをホスト名で指定(DNS)
 - [ ] `wg-quick` 形式の設定テキストの読み込み(フットプリントを見て判断)
 - [ ] ESP32 で MQTT ブローカーを動かすゲートウェイのサンプル(SPEC の Phase 4)
+- [ ] 外側を任意の Arduino `UDP` に差し替えるモード(lwIP のあるコア向け)。内側は lwIP の wg0 のまま、外側をモジュール側のスタックで送る。W5500 + `Ethernet` ライブラリ、SIM7080G などの AT コマンドの UDP が対象。受信と送信は `loop()` の `update()` で行い、wg0 からの送信はキューにためる。ループ防止の経路チェックはこのモードでは外す。W5500 の実機は手元にあるが未接続
+- [ ] lwIP 経由の W5500(ESP32 の `ETH`、arduino-pico の `W5500lwIP`)での wg0 の実機確認
 
 ### 最適化の候補(実測を見て判断。SPEC §5.1)
 - [ ] 受信した pbuf を `ip_input` にそのまま渡すゼロコピー化(アライメントの確認が必要)

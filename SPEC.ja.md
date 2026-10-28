@@ -37,7 +37,7 @@
 
 ## 2. 対象外
 
-- lwIP を持たないコア向けの独自 IP スタック(将来検討。初期スコープ外)
+- lwIP を持たないコア(AVR、Arduino SAMD、Uno R4、Mbed 系、nRF52 など)向けのトンネル内 IP スタック。これらのコアでは `TinyWGUdp` で生の IPv4 パケットを扱うところまで
 - トンネル内 IPv6 `TBD`(lwIP 側の対応次第で検討)
 - NAT 越え(STUN 等)、DNS
 - WireGuard 以外の VPN プロトコル

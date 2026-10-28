@@ -37,7 +37,7 @@ The smallest target chip is `TBD`.
 
 ## 2. Out of scope
 
-- An IP stack of our own for cores without lwIP (maybe later; not in the initial scope)
+- An IP stack inside the tunnel for cores without lwIP (AVR, Arduino SAMD, Uno R4, the Mbed cores, nRF52 and the like). On those cores TinyWG goes as far as raw IPv4 packets with `TinyWGUdp`
 - IPv6 inside the tunnel `TBD` (depends on lwIP)
 - NAT traversal (STUN and the like), DNS
 - VPN protocols other than WireGuard
