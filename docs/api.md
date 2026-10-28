@@ -122,6 +122,7 @@ The engine, with no lwIP or Arduino dependency. Not thread-safe: the caller seri
 | `const Stats &stats() const` | Counters |
 | `const uint8_t *publicKey() const` | Public key (32 bytes) |
 | `void receiveOuter(uint8_t *data, size_t len, const Endpoint &from, uint32_t nowMs)` | One outer UDP datagram. `data` is decrypted in place |
+| `uint8_t *innerBuffer()` | Room for one inner packet (`mtu()` bytes). A packet written here and passed to `sendInner()` is encrypted in place, with no copy. Overwritten by every call into the engine |
 | `SendResult sendInner(const uint8_t *packet, size_t len, uint32_t nowMs)` | Sends one inner IPv4 packet |
 | `bool connect(int peer, uint32_t nowMs)` | Starts a handshake now |
 | `void tick(uint32_t nowMs)` | Runs the timers; call every 100 ms or so |

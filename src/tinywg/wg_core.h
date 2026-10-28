@@ -109,6 +109,10 @@ public:
     void receiveOuter(uint8_t *data, size_t len, const Endpoint &from, uint32_t nowMs);
     // One inner IPv4 packet to send; the peer is chosen from AllowedIPs.
     SendResult sendInner(const uint8_t *packet, size_t len, uint32_t nowMs);
+    // Room for one inner packet (mtu() bytes) where sendInner() encrypts it:
+    // a packet written here and passed to sendInner() is not copied again.
+    // Overwritten by every call into the engine.
+    uint8_t *innerBuffer() { return tx_ + 16; }
     // Starts a handshake with peer now (normally the first packet does).
     bool connect(int peer, uint32_t nowMs);
     // Runs the timers. Call at least every 100 ms or so.
@@ -163,8 +167,9 @@ private:
     Peer peers_[TINYWG_MAX_PEERS];
     Stats stats_;
 
-    // Outgoing message buffer: data header + padded payload + tag.
-    uint8_t tx_[16 + TINYWG_MTU + 16 + 16];
+    // Outgoing message buffer: data header + payload + tag. Padding never goes
+    // past the MTU, so the payload is at most TINYWG_MTU.
+    uint8_t tx_[16 + TINYWG_MTU + 16];
 #if TINYWG_STAGED_PACKET
     int stagedPeer_;
     size_t stagedLen_;

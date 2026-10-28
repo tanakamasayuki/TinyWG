@@ -211,7 +211,7 @@ void TinyWG::pollOuter()
 {
     // The module is used only here, outside the lock; the engine and pbufs only inside it.
     for (int n; (n = outerUdp_->parsePacket()) > 0;) {
-        if ((size_t)n > sizeof(scratch_)) continue;   // the rest is dropped by the next parsePacket()
+        if (n > 0xFFFF) continue;   // the rest is dropped by the next parsePacket()
         lock();
         struct pbuf *q = pbuf_alloc(PBUF_RAW, (u16_t)n, PBUF_RAM);
         unlock();
@@ -287,8 +287,10 @@ err_t TinyWG::netifOutput(struct netif *n, struct pbuf *p, const ip4_addr_t *des
     if (p->len == p->tot_len) {
         data = static_cast<const uint8_t *>(p->payload);
     } else {
-        pbuf_copy_partial(p, self->scratch_, (u16_t)len, 0);
-        data = self->scratch_;
+        // A chain (header and data pbufs): gather it where the engine encrypts.
+        uint8_t *buf = self->device_.innerBuffer();
+        pbuf_copy_partial(p, buf, (u16_t)len, 0);
+        data = buf;
     }
     switch (self->device_.sendInner(data, len, millis())) {
     case tinywg::SendResult::Sent:
@@ -303,18 +305,17 @@ void TinyWG::udpReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip
 {
     (void)pcb;
     TinyWG *self = static_cast<TinyWG *>(arg);
-    size_t len = p->tot_len;
-    if (IP_IS_V4(addr) && len <= sizeof(self->scratch_)) {
+    if (IP_IS_V4(addr) && p->len != p->tot_len) {
+        // Rare: a chain. Make it one contiguous pbuf, as the engine decrypts in place.
+        struct pbuf *q = pbuf_clone(PBUF_RAW, PBUF_RAM, p);
+        pbuf_free(p);
+        p = q;
+        if (!p) return;
+    }
+    if (IP_IS_V4(addr)) {
         const ip4_addr_t *a = ip_2_ip4(addr);
         tinywg::Endpoint from = {{ip4_addr1(a), ip4_addr2(a), ip4_addr3(a), ip4_addr4(a)}, port};
-        uint8_t *data;
-        if (p->len == p->tot_len) {
-            data = static_cast<uint8_t *>(p->payload);   // decrypted in place
-        } else {
-            pbuf_copy_partial(p, self->scratch_, (u16_t)len, 0);
-            data = self->scratch_;
-        }
-        self->device_.receiveOuter(data, len, from, millis());
+        self->device_.receiveOuter(static_cast<uint8_t *>(p->payload), p->tot_len, from, millis());
     }
     pbuf_free(p);
 }

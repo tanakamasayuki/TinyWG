@@ -129,19 +129,21 @@ When the endpoint itself would be routed into wg0 (the outer UDP entering the tu
 | Inner MTU | Changeable at run time with `setMtu()` from 576 up to the limit (1420 by default). The limit `TINYWG_MTU` sizes the buffers and can be lowered at build time to save RAM |
 | Crypto backend | Portable C (Monocypher, BLAKE2s). Hardware acceleration (ESP32 and others) `TBD` |
 
-### 5.1 Footprint (2026-10-27, build sizes)
+### 5.1 Footprint (2026-10-27; RAM after the 2026-10-28 savings; build sizes)
 
 What TinyWG adds to a sketch with the same function (network, UDP send, clock). Default settings (4 peers, MTU 1420, 128-bit window, staged packet on).
 
 | Target | Flash | RAM (static) | Notes |
 |---|---|---|---|
-| ESP32 (Esp32Client) | +25.6 KB | +8.2 KB | |
-| Pico W (PicoWClient) | +22.9 KB | +7.9 KB | |
-| CH32V307 (Ch32EthernetClient) | +22.2 KB | +7.9 KB | 79.3 KB flash / 45.5 KB RAM in all (lwIP pools included) |
+| ESP32 (Esp32Client) | +26.8 KB | +6.6 KB | `TinyWG` object 6624 B |
+| Pico W (PicoWClient) | +22.9 KB | +6.2 KB | `TinyWG` object 6272 B |
+| CH32V307 (Ch32EthernetClient) | +22.3 KB | +6.2 KB | `TinyWG` object 6256 B; 80.3 KB flash / 43.9 KB RAM in all (lwIP pools included) |
 
-RAM breakdown (`sizeof` on a 64-bit host): `Device` 6.3 KB (792 B per peer × 4, send buffer 1.47 KB, staged packet 1.42 KB), plus the lwIP adapter's scratch buffer of 1.47 KB. Slightly smaller on 32-bit MCUs.
+RAM breakdown (`sizeof` on a 64-bit host): `Device` 5.8 KB (728 B per peer × 4, send buffer 1.45 KB, staged packet 1.42 KB). The lwIP adapter gathers non-contiguous pbufs straight into `Device`'s send buffer and has no scratch buffer. Slightly smaller on 32-bit MCUs. On 2026-10-28 the adapter's scratch buffer (1.47 KB) and the per-peer derived keys (64 B per peer) went, saving 1.6 to 1.7 KB per board. The ESP32's extra 1.2 KB of flash is `setOuterUdp()`.
 
-Candidates for savings (decided by measurement): disabling the staged packet, fewer peers or a smaller MTU, sharing the lwIP adapter's scratch buffer with `Device`'s send buffer, passing received pbufs to `ip_input` without a copy.
+Flash breakdown (CH32V307): X25519 (Monocypher) about 7.2 KB, the engine about 6.5 KB, BLAKE2s about 1.7 KB, ChaCha20-Poly1305 about 1.8 KB, the lwIP adapter about 2 KB.
+
+Candidates for savings (decided by measurement): keeping the staged packet inside the send buffer (about 1.4 KB less; sending to another peer meanwhile loses the waiting packet), disabling the staged packet, fewer peers or a smaller MTU, passing received pbufs to `ip_input` without a copy, a small and slow X25519 selectable at build time (about 5 KB less flash, X25519 several times slower).
 
 ### 5.2 Measurements on hardware (2026-10-27, `tests/bench_crypto`, Arduino's default optimisation)
 

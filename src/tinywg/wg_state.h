@@ -73,8 +73,6 @@ struct Peer {
     uint8_t publicKey[32];
     uint8_t presharedKey[32];   // zero when none
     uint8_t staticShared[32];   // DH(our static, peer static), computed once in addPeer()
-    uint8_t mac1Key[32];        // HASH(LABEL_MAC1 || peer public key), for mac1 we send
-    uint8_t cookieKey[32];      // HASH(LABEL_COOKIE || peer public key), opens its cookie replies
     AllowedIp allowed[TINYWG_MAX_ALLOWED_IPS];
     uint8_t allowedCount;
     Endpoint endpoint;

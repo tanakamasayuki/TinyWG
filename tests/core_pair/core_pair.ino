@@ -1,10 +1,12 @@
 // Two tinywg::Device engines wired back to back in one process, with a
 // simulated clock: handshake, data both ways, replay and tamper rejection,
 // AllowedIPs enforcement, rekey, passive keepalive, key zeroing,
-// handshake retransmission and the timestamp reset for a rebooted peer.
+// handshake retransmission, a cookie reply, and the timestamp reset for a
+// rebooted peer.
 // Interop with a real WireGuard is kernel_interop/.
 
 #include <TinyWG.h>
+#include <tinywg/wg_crypto.h>
 #include <string.h>
 
 using namespace tinywg;
@@ -297,6 +299,43 @@ void setup()
         PeerStatus s;
         c.peerStatus(0, &s);
         EXPECT_TRUE("wrong psk rejected", !s.sessionUp && c.stats().rxHandshakeFail == 1);
+    }
+
+    // A cookie reply (a responder under load): the initiator opens it with the
+    // responder's public key and sends mac2 = MAC(cookie, message) from then on.
+    {
+        static Device ci;
+        static Wire ciw;
+        ciw.self = 0;
+        ci.begin(priv[0], &ciw);
+        ci.addPeer(pub[1]);
+        ci.addAllowedIp(0, ipB, 32);
+        ci.setEndpoint(0, Endpoint{{127, 0, 0, 1}, 2});
+        dropWire();
+        ci.connect(0, g_now);
+        static Datagram init;
+        init = g_wire[0];
+        dropWire();
+        uint8_t zero[16] = {0};
+        EXPECT_TRUE("mac2 zero", memcmp(init.data + 132, zero, 16) == 0);
+
+        uint8_t cookie[16], key[32], reply[64] = {3};
+        for (int i = 0; i < 16; i++) cookie[i] = (uint8_t)(0xC0 + i);
+        memcpy(reply + 4, init.data + 4, 4);                         // receiver: the initiator's index
+        for (int i = 0; i < 24; i++) reply[8 + i] = (uint8_t)i;      // nonce
+        crypto::hash(key, (const uint8_t *)"cookie--", 8, pub[1], 32);
+        crypto::xaeadEncrypt(reply + 32, key, reply + 8, cookie, 16, init.data + 116, 16);   // AD: its mac1
+        ci.receiveOuter(reply, sizeof(reply), Endpoint{{127, 0, 0, 1}, 2}, g_now);
+        EXPECT_TRUE("cookie accepted", ci.stats().rxHandshakeFail == 0);
+
+        g_now += 6000;
+        ci.tick(g_now);   // the retransmission carries mac2
+        EXPECT_TRUE("initiation resent", g_wireCount == 1);
+        uint8_t expect[16];
+        crypto::mac(expect, cookie, 16, g_wire[0].data, 148 - 16);
+        EXPECT_TRUE("mac2 from cookie", memcmp(g_wire[0].data + 132, expect, 16) == 0);
+        dropWire();
+        ci.end();
     }
 
     // A rebooted A whose clock starts at 1970 again: B refuses its older

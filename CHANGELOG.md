@@ -15,6 +15,8 @@
 - (JA) TinyWGTimeServer: WireGuard サーバーから時刻を配れる、必要なら使う簡易 NTP サーバー。Esp32Server で使用。
 - (EN) TinyWG::setOuterUdp(): the outer UDP over any Arduino UDP (a W5500 on the Ethernet library, a modem's AT socket) while wg0 stays in lwIP. The library drives it (a task on ESP32, lwIP's timer on CH32V), or update() does.
 - (JA) TinyWG::setOuterUdp(): wg0 は lwIP のまま、外側の UDP を任意の Arduino UDP(W5500 の Ethernet ライブラリ、モデムの AT ソケット)にする。ライブラリが自分で回す(ESP32 はタスク、CH32V は lwIP のタイマー)か、update() で回す。
+- (EN) About 1.6 KB less RAM: the lwIP adapter's scratch buffer and the per-peer derived keys are gone. Device::innerBuffer() lets a caller write a packet where it is encrypted.
+- (JA) RAM を約 1.6 KB 削減: lwIP アダプタの作業バッファとピアごとの派生鍵をなくした。Device::innerBuffer() で、暗号化する場所に直接パケットを書ける。
 - (EN) Esp32W5500Client example: a W5500 on Arduino's Ethernet library as the outer side.
 - (JA) Esp32W5500Client サンプル: Arduino の Ethernet ライブラリで動かす W5500 を外側に使う。
 - (EN) Tests: board_responder and board_pair run with each outer mode; board_pair over the full product of boards (--profiles=all --peer-profiles=all).

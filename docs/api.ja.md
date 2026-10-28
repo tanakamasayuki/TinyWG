@@ -122,6 +122,7 @@ lwIP にも Arduino にも依存しないエンジンです。スレッド安全
 | `const Stats &stats() const` | 統計 |
 | `const uint8_t *publicKey() const` | 公開鍵(32 バイト) |
 | `void receiveOuter(uint8_t *data, size_t len, const Endpoint &from, uint32_t nowMs)` | 外側の UDP データグラムを 1 つ渡す。`data` はその場で復号される |
+| `uint8_t *innerBuffer()` | 内側のパケット 1 つ分(`mtu()` バイト)の領域。ここに書いて `sendInner()` に渡すと、コピーせずにその場で暗号化する。エンジンを呼ぶたびに上書きされる |
 | `SendResult sendInner(const uint8_t *packet, size_t len, uint32_t nowMs)` | 内側の IPv4 パケットを 1 つ送る |
 | `bool connect(int peer, uint32_t nowMs)` | 今すぐハンドシェイクを始める |
 | `void tick(uint32_t nowMs)` | タイマーを進める。100 ms 程度ごとに呼ぶ |

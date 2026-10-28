@@ -282,13 +282,13 @@ NTP の応答には認証がありません。同じ網にいる攻撃者は、�
 
 | マクロ | 既定値 | RAM への影響 |
 |---|---|---|
-| `TINYWG_MAX_PEERS` | 4 | 1 ピアあたり約 0.8 KB |
+| `TINYWG_MAX_PEERS` | 4 | 1 ピアあたり約 0.7 KB |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | 1 項目あたり数バイト |
-| `TINYWG_MTU` | 1420 | 送信バッファ、staged packet、`TinyWG` の作業バッファの大きさ(それぞれ約 MTU バイト) |
+| `TINYWG_MTU` | 1420 | 送信バッファと staged packet の大きさ(それぞれ約 MTU バイト) |
 | `TINYWG_REPLAY_WINDOW` | 128 | 窓の大きさ(ビット)。32 の倍数で 64 以上 |
 | `TINYWG_STAGED_PACKET` | 1 | 0 にすると、ハンドシェイク中に送ろうとしたパケットを保持しない(約 MTU バイト減) |
 
-既定の設定で、`Device` は約 6.3 KB です。`TinyWG` 全体では、ESP32 で Flash +25.6 KB、静的 RAM +8.2 KB を使います。詳細は [SPEC.ja.md](../SPEC.ja.md) §5 にあります。
+既定の設定で、`Device` は約 5.8 KB です。`TinyWG` 全体では、ESP32 で Flash +26.8 KB、静的 RAM +6.6 KB を使います。詳細は [SPEC.ja.md](../SPEC.ja.md) §5 にあります。
 
 ## 9. タイマーと動き
 

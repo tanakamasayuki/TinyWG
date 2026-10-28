@@ -129,19 +129,21 @@ wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がト�
 | 内側 MTU | 実行時に `setMtu()` で 576 〜 上限の範囲で変更可(既定 1420)。上限 `TINYWG_MTU` はバッファの大きさを決め、RAM 削減のためビルド時に縮小可 |
 | 暗号バックエンド | ポータブル C 実装(Monocypher、BLAKE2s)。HW アクセラレーション(ESP32 等)への差し替えは `TBD` |
 
-### 5.1 フットプリント実測(2026-10-27、ビルドサイズ)
+### 5.1 フットプリント実測(2026-10-27、RAM は 2026-10-28 の削減後、ビルドサイズ)
 
 同じ機能のスケッチ(ネットワーク接続 + UDP 送信 + 時刻合わせ)に、TinyWG を足した増分。既定設定(ピア 4、MTU 1420、窓 128 ビット、staged packet あり)。
 
 | ターゲット | Flash | RAM(静的) | 備考 |
 |---|---|---|---|
-| ESP32(Esp32Client) | +25.6 KB | +8.2 KB | |
-| Pico W(PicoWClient) | +22.9 KB | +7.9 KB | |
-| CH32V307(Ch32EthernetClient) | +22.2 KB | +7.9 KB | 全体では Flash 79.3 KB / RAM 45.5 KB(lwIP のプールを含む) |
+| ESP32(Esp32Client) | +26.8 KB | +6.6 KB | `TinyWG` オブジェクト 6624 B |
+| Pico W(PicoWClient) | +22.9 KB | +6.2 KB | `TinyWG` オブジェクト 6272 B |
+| CH32V307(Ch32EthernetClient) | +22.3 KB | +6.2 KB | `TinyWG` オブジェクト 6256 B。全体では Flash 80.3 KB / RAM 43.9 KB(lwIP のプールを含む) |
 
-RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 792 B × 4、送信バッファ 1.47 KB、staged packet 1.42 KB)。これに lwIP アダプタの作業バッファ 1.47 KB が加わる。32 ビットのマイコンではもう少し小さい。
+RAM の内訳(host 64 ビットでの `sizeof`): `Device` 5.8 KB(ピア 1 つ 728 B × 4、送信バッファ 1.45 KB、staged packet 1.42 KB)。lwIP アダプタは、連続していない pbuf を `Device` の送信バッファに直接集めるので、作業バッファを持たない。32 ビットのマイコンではもう少し小さい。2026-10-28 に、アダプタの作業バッファ(1.47 KB)とピアごとの派生鍵(64 B × ピア数)をなくし、1 台あたり 1.6〜1.7 KB 減らした。ESP32 の Flash の増分 1.2 KB は `setOuterUdp()` の分。
 
-削減の候補(実測を見て判断): staged packet の無効化、ピア数・MTU の縮小、lwIP アダプタの作業バッファと Device の送信バッファの共用、受信 pbuf をそのまま `ip_input` に渡すゼロコピー化。
+Flash の内訳(CH32V307): X25519(Monocypher)約 7.2 KB、エンジン約 6.5 KB、BLAKE2s 約 1.7 KB、ChaCha20-Poly1305 約 1.8 KB、lwIP アダプタ約 2 KB。
+
+削減の候補(実測を見て判断): staged packet を送信バッファの中に置く(約 1.4 KB 減。待っている間にほかのピアへ送ると、待っていたパケットが消える)、staged packet の無効化、ピア数・MTU の縮小、受信 pbuf をそのまま `ip_input` に渡すゼロコピー化、小さく遅い X25519 の実装をビルド時に選べるようにする(Flash 約 5 KB 減、X25519 が数倍遅くなる)。
 
 ### 5.2 実機での計測(2026-10-27、`tests/bench_crypto`、Arduino 既定の最適化)
 

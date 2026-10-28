@@ -238,8 +238,6 @@ int Device::addPeer(const uint8_t publicKey[kKeyLen], const uint8_t *presharedKe
             crypto::wipe(&p, sizeof(p));
             return -1;
         }
-        crypto::hash(p.mac1Key, (const uint8_t *)kLabelMac1, 8, publicKey, kKeyLen);
-        crypto::hash(p.cookieKey, (const uint8_t *)kLabelCookie, 8, publicKey, kKeyLen);
         p.used = true;
         return i;
     }
@@ -390,7 +388,9 @@ void Device::addMacs(Peer *p, uint8_t *msg, size_t len, uint32_t now)
 {
     uint8_t *mac1 = msg + len - 32;
     uint8_t *mac2 = msg + len - 16;
-    crypto::mac(mac1, p->mac1Key, 32, msg, len - 32);
+    uint8_t mac1Key[32];   // HASH(LABEL_MAC1 || peer public key): derived here, not kept per peer
+    crypto::hash(mac1Key, (const uint8_t *)kLabelMac1, 8, p->publicKey, kKeyLen);
+    crypto::mac(mac1, mac1Key, 32, msg, len - 32);
     memcpy(p->lastMac1, mac1, 16);
     p->hasLastMac1 = true;
     if (p->hasCookie && (now - p->cookieMs) < kCookieLifetime)
@@ -694,8 +694,9 @@ void Device::handleCookieReply(uint8_t *msg, size_t len, uint32_t now)
         bool match = (p.handshake.initiationSent && p.handshake.localIndex == receiver) ||
                      (p.next.valid && p.next.localIndex == receiver);
         if (!match) continue;
-        uint8_t cookie[16];
-        if (crypto::xaeadDecrypt(cookie, p.cookieKey, msg + 8, msg + 32, 16, p.lastMac1, 16)) {
+        uint8_t cookie[16], cookieKey[32];   // HASH(LABEL_COOKIE || peer public key)
+        crypto::hash(cookieKey, (const uint8_t *)kLabelCookie, 8, p.publicKey, kKeyLen);
+        if (crypto::xaeadDecrypt(cookie, cookieKey, msg + 8, msg + 32, 16, p.lastMac1, 16)) {
             memcpy(p.cookie, cookie, 16);
             p.hasCookie = true;
             p.cookieMs = now;
@@ -820,7 +821,7 @@ SendResult Device::sendData(Peer *p, const uint8_t *packet, size_t len, uint32_t
     setHeader(msg, kTypeData);
     put32(msg + 4, s.remoteIndex);
     put64(msg + 8, counter);
-    if (len) memcpy(msg + kDataHeaderLen, packet, len);
+    if (len && packet != msg + kDataHeaderLen) memmove(msg + kDataHeaderLen, packet, len);
     memset(msg + kDataHeaderLen + len, 0, padded - len);
     crypto::aeadEncrypt(msg + kDataHeaderLen, s.sendKey, counter, msg + kDataHeaderLen, padded, nullptr, 0);
     size_t total = kDataHeaderLen + padded + crypto::kTagSize;

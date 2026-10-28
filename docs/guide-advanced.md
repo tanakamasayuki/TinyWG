@@ -283,13 +283,13 @@ Override with `-D` (`src/tinywg/wg_config.h`). With `arduino-cli`: `--build-prop
 
 | Macro | Default | Effect on RAM |
 |---|---|---|
-| `TINYWG_MAX_PEERS` | 4 | about 0.8 KB per peer |
+| `TINYWG_MAX_PEERS` | 4 | about 0.7 KB per peer |
 | `TINYWG_MAX_ALLOWED_IPS` | 4 | a few bytes per entry |
-| `TINYWG_MTU` | 1420 | sizes the send buffer, the staged packet and `TinyWG`'s scratch buffer (about MTU bytes each) |
+| `TINYWG_MTU` | 1420 | sizes the send buffer and the staged packet (about MTU bytes each) |
 | `TINYWG_REPLAY_WINDOW` | 128 | window in bits; a multiple of 32, at least 64 |
 | `TINYWG_STAGED_PACKET` | 1 | 0: do not hold a packet sent during a handshake (saves about MTU bytes) |
 
-With the defaults `Device` is about 6.3 KB. All of `TinyWG` adds 25.6 KB of flash and 8.2 KB of static RAM on an ESP32. Details are in [SPEC.md](../SPEC.md) §5.
+With the defaults `Device` is about 5.8 KB. All of `TinyWG` adds 26.8 KB of flash and 6.6 KB of static RAM on an ESP32. Details are in [SPEC.md](../SPEC.md) §5.
 
 ## 9. Timers and behaviour
 

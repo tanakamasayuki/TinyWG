@@ -109,9 +109,6 @@ private:
     Outgoing outgoing_[kOuterQueue];
     int outgoingHead_ = 0;
     int outgoingCount_ = 0;
-    // For pbuf chains that are not contiguous. Outer receive and inner send never
-    // overlap in it: an inner packet is copied out before lwIP sees it.
-    uint8_t scratch_[16 + TINYWG_MTU + 16 + 16];
 };
 
 #endif
