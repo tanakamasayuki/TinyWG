@@ -79,6 +79,8 @@ In `TinyWG`, the outer UDP receive callback, the netif output and a 100 ms lwIP 
 
 When the endpoint itself would be routed into wg0 (the outer UDP entering the tunnel), nothing is sent, to avoid a loop (checked with `ip4_route()`).
 
+`setOuterUdp(UDP *, bool pollFromLoop)` moves only the outer side to any Arduino `UDP` (a TCP/IP stack in the module: a W5500 on the `Ethernet` library, a modem's AT socket and so on); wg0 stays in lwIP. The outer I/O runs in a task of its own on ESP32 and from lwIP's timer on CH32V, and from `update()` with `pollFromLoop` and on arduino-pico. The engine's sends wait in a queue (8) for the outer driver to hand them to the module. In this mode there is no loop check on the route.
+
 ## 4. Functional requirements
 
 ### 4.1 Protocol (required)

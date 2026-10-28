@@ -70,8 +70,10 @@ Derives from `TinyWGBase`. Available on cores with lwIP (ESP32, arduino-pico, CH
 | `bool setMtu(uint16_t mtu)` | success | `TinyWGBase::setMtu()`, and `wg0`'s MTU as well |
 | `struct netif *netif()` | `wg0` | For routing or NAPT set up by the sketch |
 | `bool enableNapt(bool enable = true)` | success | ESP32 only (when `IP_NAPT` is on). NAPT for traffic that peers send into `wg0` and that leaves by another interface. Call after `begin()` |
+| `bool setOuterUdp(UDP *udp, bool pollFromLoop = false)` | success | Moves the outer UDP to any Arduino `UDP` (a W5500's `EthernetUDP`, a modem's AT socket and so on); `wg0` stays in lwIP. Call before `begin()`, which opens `udp`. `nullptr` goes back to lwIP's UDP. false while running. By default the library drives the outer I/O itself (ESP32: a task of its own; CH32V: lwIP's timer). With `pollFromLoop = true`, and on arduino-pico, `update()` drives it. [Advanced guide §2](guide-advanced.md#replacing-the-outer-udp) |
+| `void update()` | | With `setOuterUdp(udp, true)` and on arduino-pico: reads the outer datagrams that arrived and sends the queued ones. Call from `loop()` often. Otherwise it does nothing |
 
-Nothing is called from `loop()`: receiving and the timers run inside lwIP. On an ESP32, do not call the public methods from inside an lwIP callback (it deadlocks).
+Normally nothing is called from `loop()`: receiving and the timers run inside lwIP. On an ESP32, do not call the public methods from inside an lwIP callback (it deadlocks).
 
 ## TinyWGUdp
 

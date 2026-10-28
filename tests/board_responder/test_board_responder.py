@@ -7,6 +7,11 @@ knows the PC's endpoint it also initiates a handshake of its own.
 
     uv run --env-file .env pytest board_responder --profile esp32 -s
     uv run --env-file .env pytest board_responder --profile ch32v307 -s   # Ethernet
+    uv run --env-file .env pytest board_responder/test_board_responder.py --profiles=esp32,esp32s3 -s
+
+It runs three times: with the outer side on lwIP's UDP, and on an Arduino UDP
+(setOuterUdp, as for a W5500 on the Ethernet library) with wg0 staying in lwIP,
+driven by the library itself or by update() in loop().
 """
 
 import base64
@@ -17,6 +22,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -49,6 +56,11 @@ def udp_echo(peer, payload, sport=40000):
         if proto == 17 and struct.unpack_from("!H", body, 2)[0] == sport:
             return body[8:]
     return None
+
+
+def udp_echo_retry(peer, payload):
+    """udp_echo with one retry: a single datagram is sometimes lost on Wi-Fi."""
+    return udp_echo(peer, payload) or udp_echo(peer, payload)
 
 
 def stats(dut):
@@ -137,10 +149,19 @@ def napt(dut, peer, record_property):
     record_property("napt", "ok")
 
 
-def test_board_responder(dut, record_property):
+OUTER_MODES = {"lwip": 0, "udp": 1, "udp_loop": 2}
+
+
+@pytest.mark.parametrize("outer", OUTER_MODES)
+def test_board_responder(dut, record_property, outer):
+    # The parametrized runs share one flashed board: start it afresh.
+    dut.write("RESTART\n")
+    dut.expect("RESTART-OK", timeout=30)
     m = dut.expect(re.compile(rb"(?:NET_OK (\S+)|NET_ERROR ([^\r\n]+))\r?\n"), timeout=150)
     assert m.group(1), f"network: {m.group(2).decode()}"
     dut.expect("DUT-WAIT-CONFIG", timeout=10)
+    dut.write(f"OUTER {OUTER_MODES[outer]}\n")
+    dut.expect("OUTER 1", timeout=5)
 
     peer = start(dut)
     try:
@@ -165,11 +186,11 @@ def test_board_responder(dut, record_property):
         # A WiFiUDP socket on the board echoes through the tunnel, up to the full MTU.
         for size in (1, 100, 512, 1000, 1392):
             payload = bytes((i * 31 + size) & 0xFF for i in range(size))
-            assert udp_echo(peer, payload) == payload, f"udp echo {size} bytes"
+            assert udp_echo_retry(peer, payload) == payload, f"udp echo {size} bytes"
 
         # A run of echoes: counters and the replay window over many packets.
         t = time.monotonic()
-        ok = sum(udp_echo(peer, b"seq%04d" % i + bytes(200)) is not None for i in range(100))
+        ok = sum(udp_echo_retry(peer, b"seq%04d" % i + bytes(200)) is not None for i in range(100))
         rate = 100 * 207 * 2 / (time.monotonic() - t) / 1024
         print(f"  100 sequential echoes: {ok}/100, {rate:.1f} KiB/s both ways")
         record_property("echo_kib_s", f"{rate:.1f}")

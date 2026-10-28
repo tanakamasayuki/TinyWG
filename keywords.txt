@@ -17,6 +17,7 @@ setRandom	KEYWORD2
 setWallClock	KEYWORD2
 setMtu	KEYWORD2
 setTimestampReset	KEYWORD2
+setOuterUdp	KEYWORD2
 setClock	KEYWORD2
 mtu	KEYWORD2
 stats	KEYWORD2

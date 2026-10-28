@@ -13,7 +13,11 @@
 //   MTU <bytes>                           wg0's MTU at run time
 //   NAPT                                  route the peer to the LAN through NAPT (ESP32)
 //   WIFIDROP <ms>                         leave the AP, wait, join again (ESP32)
+//   OUTER <0|1|2>                         the outer side for the next CFG: 0 lwIP's UDP,
+//                                         1 an Arduino UDP (setOuterUdp) as with a W5500,
+//                                         2 the same driven by update() in loop()
 //   STATS                                 print the drop counters
+//   RESTART                               reboot: RESTART-OK, then NET_OK and DUT-WAIT-CONFIG again
 
 #if defined(ARDUINO_ARCH_ESP32)
 #include <WiFi.h>
@@ -21,6 +25,7 @@
 typedef WiFiUDP EchoUDP;
 #else
 #include <Network.h>
+#include <ch32rv_registers.h>   // RESTART: the PFIC system reset
 typedef NetworkUDP EchoUDP;
 #endif
 #include <TinyWG.h>
@@ -36,6 +41,7 @@ typedef NetworkUDP EchoUDP;
 
 static TinyWG wg;
 static EchoUDP echo;
+static EchoUDP outer;   // the outer side after OUTER 1
 static int peer = -1;
 static uint8_t buf[1500];
 
@@ -138,8 +144,20 @@ static void command(char *line)
 #else
         Serial.println("NAPT 0");
 #endif
+    } else if (strncmp(line, "OUTER ", 6) == 0) {
+        wg.end();
+        int mode = atoi(line + 6);
+        out("OUTER %d\n", wg.setOuterUdp(mode ? &outer : nullptr, mode == 2) ? 1 : 0);
     } else if (strncmp(line, "WIFIDROP ", 9) == 0) {
         wifiDrop((uint32_t)atol(line + 9));
+    } else if (strcmp(line, "RESTART") == 0) {
+        Serial.println("RESTART-OK");
+        Serial.flush();
+#if defined(ARDUINO_ARCH_ESP32)
+        ESP.restart();
+#else
+        CH32RV_PFIC_CFGR = CH32RV_PFIC_KEY3 | CH32RV_PFIC_SYSRST;
+#endif
     } else if (strcmp(line, "STATS") == 0) {
         tinywg::Stats s = wg.stats();
         tinywg::PeerStatus p;
@@ -222,6 +240,7 @@ void loop()
         }
     }
     wifiRejoin();
+    wg.update();
     for (int n; (n = echo.parsePacket()) > 0;) {
         int got = echo.read(buf, sizeof(buf));
         echo.beginPacket(echo.remoteIP(), echo.remotePort());

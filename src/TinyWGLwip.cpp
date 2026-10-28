@@ -20,6 +20,14 @@
 #endif
 
 static constexpr uint32_t kTimerMs = 100;
+#if defined(ARDUINO_ARCH_ESP32)
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+static constexpr uint32_t kOuterTaskStack = 4096;
+static constexpr UBaseType_t kOuterTaskPriority = 2;   // above loop() (1), below lwIP
+#elif defined(ARDUINO_ARCH_CH32RV)
+static constexpr uint32_t kOuterPollMs = 1;
+#endif
 
 // ESP32: the lwIP core lock. arduino-pico: the same recursive lock its lwIP
 // wrappers take (LWIPMutex has no state, so constructing and destroying one
@@ -56,10 +64,81 @@ bool TinyWG::begin(const IPAddress &localIp, const IPAddress &subnet, const char
     return ok;
 }
 
+bool TinyWG::setOuterUdp(UDP *udp, bool pollFromLoop)
+{
+    if (up_) return false;
+    outerUdp_ = udp;
+    outerFromLoop_ = pollFromLoop;
+    return true;
+}
+
+bool TinyWG::outerInBackground() const
+{
+#if defined(ARDUINO_ARCH_ESP32) || defined(ARDUINO_ARCH_CH32RV)
+    return outerUdp_ && !outerFromLoop_;
+#else
+    return false;
+#endif
+}
+
+// Called once wg0 is up, without the lock.
+void TinyWG::startOuter()
+{
+    if (!outerInBackground()) return;
+#if defined(ARDUINO_ARCH_ESP32)
+    outerRun_ = true;
+    outerStopped_ = false;
+    TaskHandle_t t = nullptr;
+    if (xTaskCreate(outerTask, "tinywg", kOuterTaskStack, this, kOuterTaskPriority, &t) != pdPASS) {
+        outerRun_ = false;
+        outerStopped_ = true;
+    }
+    outerTask_ = t;
+#elif defined(ARDUINO_ARCH_CH32RV)
+    sys_timeout(kOuterPollMs, outerTimer, this);
+#endif
+}
+
+// Waits until the background I/O no longer touches the module. Without the lock.
+void TinyWG::stopOuter()
+{
+    if (!outerInBackground()) return;
+#if defined(ARDUINO_ARCH_ESP32)
+    outerRun_ = false;
+    while (!outerStopped_) vTaskDelay(1);
+    outerTask_ = nullptr;
+#elif defined(ARDUINO_ARCH_CH32RV)
+    sys_untimeout(outerTimer, this);
+#endif
+}
+
+#if defined(ARDUINO_ARCH_ESP32)
+void TinyWG::outerTask(void *arg)
+{
+    TinyWG *self = static_cast<TinyWG *>(arg);
+    while (self->outerRun_) {
+        self->pollOuter();
+        vTaskDelay(1);
+    }
+    self->outerStopped_ = true;
+    vTaskDelete(nullptr);
+}
+#elif defined(ARDUINO_ARCH_CH32RV)
+// lwIP's timers run in loop()'s context on CH32V, also inside a blocking socket call.
+void TinyWG::outerTimer(void *arg)
+{
+    TinyWG *self = static_cast<TinyWG *>(arg);
+    self->pollOuter();
+    sys_timeout(kOuterPollMs, outerTimer, self);
+}
+#endif
+
 bool TinyWG::begin(const IPAddress &localIp, const IPAddress &subnet, const uint8_t privateKey[32],
                    uint16_t listenPort)
 {
     end();
+    // Outside the lock: the UDP may be one on lwIP's sockets (ESP32), which take it themselves.
+    if (outerUdp_ && !outerUdp_->begin(listenPort)) return false;
     lock();
     bool ok = device_.begin(privateKey, this);
     if (ok) {
@@ -70,7 +149,7 @@ bool TinyWG::begin(const IPAddress &localIp, const IPAddress &subnet, const uint
         memset(&netif_, 0, sizeof(netif_));
         ok = netif_add(&netif_, &ip, &mask, &gw, this, netifInit, ip_input) != nullptr;
     }
-    if (ok) {
+    if (ok && !outerUdp_) {
         netif_set_up(&netif_);
         netif_set_link_up(&netif_);
         pcb_ = udp_new();
@@ -81,29 +160,88 @@ bool TinyWG::begin(const IPAddress &localIp, const IPAddress &subnet, const uint
             netif_remove(&netif_);
         }
     }
-    if (ok) {
+    if (ok && outerUdp_) {
+        netif_set_up(&netif_);
+        netif_set_link_up(&netif_);
+    } else if (ok) {
         udp_recv(pcb_, udpReceive, this);
+    }
+    if (ok) {
         sys_timeout(kTimerMs, timer, this);
         up_ = true;
     } else {
         device_.end();
     }
     unlock();
+    if (!ok && outerUdp_) outerUdp_->stop();
+    if (ok) startOuter();
     return ok;
 }
 
 void TinyWG::end()
 {
+    if (!up_) {
+        // Nothing of lwIP's to undo, and its lock may not exist yet (ESP32 before any network start).
+        device_.end();
+        return;
+    }
+    stopOuter();
     lock();
+    bool wasUp = up_;
     if (up_) {
         sys_untimeout(timer, this);
-        udp_remove(pcb_);
+        if (pcb_) udp_remove(pcb_);
         pcb_ = nullptr;
         netif_remove(&netif_);
         up_ = false;
     }
+    for (; outgoingCount_; outgoingCount_--, outgoingHead_ = (outgoingHead_ + 1) % kOuterQueue)
+        pbuf_free(outgoing_[outgoingHead_].p);
     device_.end();
     unlock();
+    if (wasUp && outerUdp_) outerUdp_->stop();
+}
+
+void TinyWG::update()
+{
+    if (up_ && outerUdp_ && !outerInBackground()) pollOuter();
+}
+
+void TinyWG::pollOuter()
+{
+    // The module is used only here, outside the lock; the engine and pbufs only inside it.
+    for (int n; (n = outerUdp_->parsePacket()) > 0;) {
+        if ((size_t)n > sizeof(scratch_)) continue;   // the rest is dropped by the next parsePacket()
+        lock();
+        struct pbuf *q = pbuf_alloc(PBUF_RAW, (u16_t)n, PBUF_RAM);
+        unlock();
+        if (!q) continue;
+        uint8_t *data = static_cast<uint8_t *>(q->payload);
+        int got = outerUdp_->read(data, n);
+        IPAddress ip = outerUdp_->remoteIP();
+        tinywg::Endpoint from = {{ip[0], ip[1], ip[2], ip[3]}, outerUdp_->remotePort()};
+        lock();
+        if (got == n) device_.receiveOuter(data, (size_t)n, from, millis());
+        pbuf_free(q);
+        unlock();
+    }
+    for (;;) {
+        lock();
+        if (!outgoingCount_) {
+            unlock();
+            break;
+        }
+        Outgoing o = outgoing_[outgoingHead_];
+        outgoingHead_ = (outgoingHead_ + 1) % kOuterQueue;
+        outgoingCount_--;
+        unlock();
+        outerUdp_->beginPacket(IPAddress(o.to.addr[0], o.to.addr[1], o.to.addr[2], o.to.addr[3]), o.to.port);
+        outerUdp_->write(static_cast<const uint8_t *>(o.p->payload), o.p->len);
+        outerUdp_->endPacket();
+        lock();
+        pbuf_free(o.p);
+        unlock();
+    }
 }
 
 #if defined(IP_NAPT) && IP_NAPT
@@ -190,6 +328,15 @@ void TinyWG::timer(void *arg)
 
 void TinyWG::sendOuter(const tinywg::Endpoint &to, const uint8_t *data, size_t len)
 {
+    if (outerUdp_) {
+        // Called with the lock held, from any context: pollOuter() sends it.
+        if (outgoingCount_ == kOuterQueue) return;
+        struct pbuf *q = pbuf_alloc(PBUF_RAW, (u16_t)len, PBUF_RAM);
+        if (!q) return;
+        memcpy(q->payload, data, len);
+        outgoing_[(outgoingHead_ + outgoingCount_++) % kOuterQueue] = {q, to};
+        return;
+    }
     ip4_addr_t dest;
     IP4_ADDR(&dest, to.addr[0], to.addr[1], to.addr[2], to.addr[3]);
     // An endpoint routed into the tunnel itself would loop back here.

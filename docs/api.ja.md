@@ -70,8 +70,10 @@
 | `bool setMtu(uint16_t mtu)` | 成否 | `TinyWGBase::setMtu()` に加えて、`wg0` の MTU も変える |
 | `struct netif *netif()` | `wg0` | 経路や NAPT を自分で設定するとき |
 | `bool enableNapt(bool enable = true)` | 成否 | ESP32 のみ(`IP_NAPT` が有効なとき)。ピアから `wg0` に入り、ほかのインターフェースへ出ていく通信を NAPT で中継する。`begin()` の後で呼ぶ |
+| `bool setOuterUdp(UDP *udp, bool pollFromLoop = false)` | 成否 | 外側の UDP を、任意の Arduino `UDP`(W5500 の `EthernetUDP`、モデムの AT ソケットなど)にする。`wg0` は lwIP のまま。`begin()` の前に呼び、`begin()` が `udp` を開く。`nullptr` で lwIP の UDP に戻る。動作中は false。外側の送受信は、既定ではライブラリが自分で回す(ESP32 は専用タスク、CH32V は lwIP のタイマー)。`pollFromLoop = true`、または arduino-pico では、`update()` で回す。[上級者ガイド §2](guide-advanced.ja.md#外側の-udp-を差し替える) |
+| `void update()` | | `setOuterUdp(udp, true)` のときと arduino-pico で、届いた外側の UDP を読み、ためた分を送る。`loop()` から頻繁に呼ぶ。それ以外では何もしない |
 
-`loop()` から呼ぶものはありません。受信とタイマーは lwIP の中で動きます。ESP32 では、lwIP のコールバックの中から公開メソッドを呼ばないでください(デッドロックします)。
+ふつうは `loop()` から呼ぶものはありません。受信とタイマーは lwIP の中で動きます。ESP32 では、lwIP のコールバックの中から公開メソッドを呼ばないでください(デッドロックします)。
 
 ## TinyWGUdp
 

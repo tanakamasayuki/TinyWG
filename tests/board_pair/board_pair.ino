@@ -4,13 +4,17 @@
 // tunnel. The client is peer_client/ on a second board.
 //
 // Serial: CFG <private> <client public> <ap ssid> <ap password>
+//         OUTER <0|1>   1: the outer side over a WiFiUDP (setOuterUdp), for the next CFG
 //         STATS
+//         RESTART       reboots; the board prints RESTART-OK, then SERVER-WAIT-CONFIG again
 
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <TinyWG.h>
 #include <string.h>
 
 static TinyWG wg;
+static WiFiUDP outer;
 static WiFiServer echo(7);
 static int peer = -1;
 static bool ready = false;
@@ -45,6 +49,13 @@ static void command(char *line)
 {
     if (strncmp(line, "CFG ", 4) == 0) {
         configure(line);
+    } else if (strncmp(line, "OUTER ", 6) == 0) {
+        wg.end();
+        Serial.printf("OUTER %d\n", wg.setOuterUdp(atoi(line + 6) ? &outer : nullptr) ? 1 : 0);
+    } else if (strcmp(line, "RESTART") == 0) {
+        Serial.println("RESTART-OK");
+        Serial.flush();
+        ESP.restart();
     } else if (strcmp(line, "STATS") == 0) {
         tinywg::Stats s = wg.stats();
         tinywg::PeerStatus p;
@@ -78,6 +89,7 @@ void loop()
             line[len++] = (char)c;
         }
     }
+    wg.update();
     if (!ready) return;
     WiFiClient client = echo.accept();
     if (client) {
@@ -88,6 +100,7 @@ void loop()
             int n = client.read(buf, sizeof(buf));
             if (n > 0) client.write(buf, n);
             else delay(1);
+            wg.update();
         }
         client.stop();
     }

@@ -6,7 +6,14 @@
 // callback, the netif's output and a 100 ms lwIP timer. loop() has nothing to
 // call. ESP32: the public methods take the lwIP core lock, so do not call them
 // from inside an lwIP callback.
+//
+// setOuterUdp() moves the outer side to any Arduino UDP instead, for a network
+// module with its own TCP/IP stack (W5500 with the Ethernet library, a modem's
+// AT socket): wg0 stays in lwIP. The outer I/O then runs on its own (ESP32: a
+// task, CH32V: lwIP's timer), or from update() in loop().
 #pragma once
+
+#include <Udp.h>
 
 #include "TinyWGBase.h"
 
@@ -31,6 +38,23 @@ public:
                uint16_t listenPort = 51820);
     void end();
 
+    // Sends and receives the outer datagrams through udp, opened on the listen
+    // port by begin(). Call before begin(); nullptr goes back to lwIP's own UDP.
+    // false while running.
+    //
+    // By default the outer I/O runs by itself, so the tunnel keeps going while
+    // loop() blocks (a socket write waiting for ACKs, an MQTT connect): on ESP32
+    // in a task of its own, on CH32V from lwIP's timer. The sketch must then not
+    // use the module elsewhere at the same time. pollFromLoop = true leaves it
+    // to update() in loop() instead, for a sketch that also uses the module
+    // directly; arduino-pico always works this way. Then nothing in loop() may
+    // block for long.
+    bool setOuterUdp(UDP *udp, bool pollFromLoop = false);
+    // With setOuterUdp(udp, true) or on arduino-pico: reads the datagrams that
+    // arrived and sends the queued ones. Call from loop() often. Otherwise it
+    // does nothing, so it is always safe to call.
+    void update();
+
     // Also sets wg0's MTU, so lwIP sizes TCP segments to fit. Any time, before begin() too.
     bool setMtu(uint16_t mtu) override;
 
@@ -54,10 +78,37 @@ private:
     static err_t netifOutput(struct netif *n, struct pbuf *p, const ip4_addr_t *dest);
     static void udpReceive(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port);
     static void timer(void *arg);
+    void pollOuter();
+    bool outerInBackground() const;
+    void startOuter();
+    void stopOuter();
+#if defined(ARDUINO_ARCH_ESP32)
+    static void outerTask(void *arg);
+#elif defined(ARDUINO_ARCH_CH32RV)
+    static void outerTimer(void *arg);
+#endif
+
+    // Outer datagrams waiting for update() when the outer side is setOuterUdp():
+    // the engine may send from lwIP's context, where the module must not be used.
+    static constexpr int kOuterQueue = 8;
+    struct Outgoing {
+        struct pbuf *p;
+        tinywg::Endpoint to;
+    };
 
     struct netif netif_;
     struct udp_pcb *pcb_ = nullptr;
     bool up_ = false;
+    UDP *outerUdp_ = nullptr;
+    bool outerFromLoop_ = false;
+#if defined(ARDUINO_ARCH_ESP32)
+    void *outerTask_ = nullptr;           // TaskHandle_t
+    volatile bool outerRun_ = false;
+    volatile bool outerStopped_ = true;
+#endif
+    Outgoing outgoing_[kOuterQueue];
+    int outgoingHead_ = 0;
+    int outgoingCount_ = 0;
     // For pbuf chains that are not contiguous. Outer receive and inner send never
     // overlap in it: an inner packet is copied out before lwIP sees it.
     uint8_t scratch_[16 + TINYWG_MTU + 16 + 16];

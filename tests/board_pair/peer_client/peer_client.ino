@@ -7,12 +7,16 @@
 //
 // Serial: CFG <private> <server public> <ap ssid> <ap password> <server ip>
 //         RUN <bytes>     TCP echo of <bytes> bytes, reports time and result
+//         OUTER <0|1>     1: the outer side over a WiFiUDP (setOuterUdp), for the next CFG
+//         RESTART         reboots; prints RESTART-OK, then CLIENT-WAIT-CONFIG again
 
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <TinyWG.h>
 #include <string.h>
 
 static TinyWG wg;
+static WiFiUDP outer;
 static int peer = -1;
 
 static void configure(char *line)
@@ -43,7 +47,10 @@ static void configure(char *line)
     wg.setEndpoint(peer, server, 51820);
     uint32_t t = millis();
     wg.connect(peer);
-    while (!wg.peerUp(peer) && millis() - t < 10000) delay(5);
+    while (!wg.peerUp(peer) && millis() - t < 10000) {
+        wg.update();
+        delay(5);
+    }
     if (!wg.peerUp(peer)) {
         Serial.println("CLIENT-ERROR handshake");
         return;
@@ -74,6 +81,7 @@ static void run(size_t total)
         for (int i = 0; i < n; i++) same &= in[i] == (uint8_t)((received + i) * 13);
         if (n > 0) received += n;
         else delay(1);
+        wg.update();
     }
     uint32_t ms = millis() - t;
     c.stop();
@@ -100,10 +108,19 @@ void loop()
             line[len] = '\0';
             if (strncmp(line, "CFG ", 4) == 0) configure(line);
             else if (strncmp(line, "RUN ", 4) == 0) run((size_t)atol(line + 4));
+            else if (strcmp(line, "RESTART") == 0) {
+                Serial.println("RESTART-OK");
+                Serial.flush();
+                ESP.restart();
+            } else if (strncmp(line, "OUTER ", 6) == 0) {
+                wg.end();
+                Serial.printf("OUTER %d\n", wg.setOuterUdp(atoi(line + 6) ? &outer : nullptr) ? 1 : 0);
+            }
             len = 0;
         } else if (len + 1 < sizeof(line)) {
             line[len++] = (char)c;
         }
     }
+    wg.update();
     delay(1);
 }

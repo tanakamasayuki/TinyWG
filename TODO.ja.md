@@ -34,7 +34,8 @@
 - [ ] エンドポイントをホスト名で指定(DNS)
 - [ ] `wg-quick` 形式の設定テキストの読み込み(フットプリントを見て判断)
 - [ ] ESP32 で MQTT ブローカーを動かすゲートウェイのサンプル(SPEC の Phase 4)
-- [ ] 外側を任意の Arduino `UDP` に差し替えるモード(lwIP のあるコア向け)。内側は lwIP の wg0 のまま、外側をモジュール側のスタックで送る。W5500 + `Ethernet` ライブラリ、SIM7080G などの AT コマンドの UDP が対象。受信と送信は `loop()` の `update()` で行い、wg0 からの送信はキューにためる。ループ防止の経路チェックはこのモードでは外す。W5500 の実機は手元にあるが未接続
+- [ ] `setOuterUdp()` を W5500(`Ethernet` ライブラリ)と SIM7080G(AT コマンドの UDP)の実機で確かめ、サンプルを作る。今は ESP32 の `WiFiUDP` を外側にした試験だけ。W5500 の実機は手元にあるが未接続
+- [ ] `setOuterUdp()` の CH32V307 実機での確認(lwIP のタイマーで回す方式。ビルドのみ確認)
 - [ ] lwIP 経由の W5500(ESP32 の `ETH`、arduino-pico の `W5500lwIP`)での wg0 の実機確認
 
 ### 最適化の候補(実測を見て判断。SPEC §5.1)
@@ -44,6 +45,7 @@
 
 ### 公開まわり
 - [ ] GitHub への push、リリースワークフロー(`.github/workflows/release.yml`)の確認
+- [ ] リリース前に、`tests/README.ja.md` の「リリース前のフルテスト」(`--clean` 付き)を回す
 - [ ] `library.json`(PlatformIO)。必要なら
 
 ## 環境メモ

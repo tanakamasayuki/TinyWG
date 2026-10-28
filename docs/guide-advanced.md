@@ -45,6 +45,34 @@ When you use the engine directly through `wg.device()` on the ESP32, wrap the ca
 
 `TinyWGUdp` and `Device` assume no threads: make every call from the same task.
 
+### Replacing the outer UDP
+
+A W5500 on Arduino's `Ethernet` library, or a modem such as the SIM7080G driven by AT commands, runs TCP/IP inside the module. That is outside lwIP, so as it is, `wg0`'s outer traffic never leaves through the module.
+
+With `setOuterUdp()`, `wg0` stays in lwIP and only the outer UDP goes to the module's `UDP`. Inside the tunnel, `NetworkClient`, MQTT and other code on lwIP work as they are.
+
+```cpp
+EthernetUDP outer;
+TinyWG wg;
+
+wg.setOuterUdp(&outer);                                     // before begin()
+wg.begin(kTunnelIp, kTunnelMask, kPrivateKey, 51820);      // opens outer on 51820
+```
+
+By default the library drives the outer I/O itself.
+
+| Core | Drives the outer side | Notes |
+|---|---|---|
+| ESP32 | A FreeRTOS task of its own (priority 2, every 1 ms) | The tunnel keeps going while `loop()` waits in a socket write or an MQTT connect. In exchange, the sketch must not use the same module at the same time (an `EthernetClient` outside the tunnel, say) |
+| CH32V | lwIP's timer (every 1 ms) | lwIP's timers run in `loop()`'s flow, so they run inside blocking calls too |
+| arduino-pico | `wg.update()` in `loop()` | Not driven automatically |
+
+When the sketch also uses the module directly, call `wg.setOuterUdp(&outer, true)` and `wg.update()` from `loop()`. Then the tunnel stops whenever `loop()` does. Calls that wait for the other side, such as a socket write, cannot be used (the ESP32's `WiFiClient::write()` waits up to 10 s for ACKs, and traffic jams meanwhile). `update()` is harmless to call in every mode.
+
+- Packets leaving `wg0` wait in a queue (8 deep) until the outer driver hands them to the module. What overflows is dropped, as UDP would be
+- The outer side does not go through lwIP, so there is no "do not send when the outer destination routes into `wg0`" loop check. Without Wi-Fi, `wg0` can even be the default route
+- The tests check it with an ESP32 `WiFiUDP` as the outer side. It has not been tried on a W5500 or a SIM7080G yet
+
 ## 3. Order of configuration, and what lasts
 
 ```cpp

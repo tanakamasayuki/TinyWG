@@ -7,6 +7,7 @@ Arduino 向けの、コアに依存しない WireGuard 実装です。**イニ�
 - プロトコルエンジン(`tinywg::Device`)は lwIP にも Arduino API にも依存しません
 - `TinyWG` は lwIP のネットワークインターフェース(wg0)として動きます。`WiFiClient` / `NetworkClient`、`WiFiServer`、MQTT ブローカーなど、lwIP 上の既存のコードがそのままトンネルを通ります
 - `TinyWGUdp` は任意の Arduino `UDP` の上で動き、内側の IPv4 パケットをスケッチが直接扱います
+- 外側の UDP だけを、モジュール側のスタック(W5500 の `Ethernet` ライブラリ、モデムの AT ソケットなど)の `UDP` にもできます(`setOuterUdp()`)。トンネルの中は lwIP のままです
 - インターネットのない閉域網でも使えます。時計のないクライアントを受け付ける設定(`setTimestampReset()`)と、WG サーバーで時刻を配る簡易 NTP サーバー(`TinyWGTimeServer`)があります
 - Linux カーネルの WireGuard と相互接続できることを自動テストで確認しています
 

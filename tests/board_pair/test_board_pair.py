@@ -1,11 +1,15 @@
 """Two boards through TinyWG: TCP over lwIP on both ends of the tunnel.
 
-The primary board (ESP32) opens an access point and is the WireGuard server;
-peer_client (ESP32-S3) joins it and initiates. Keys and the AP password are
-generated per run, so no external Wi-Fi is involved.
+The primary board opens an access point and is the WireGuard server;
+peer_client joins it and initiates. Keys and the AP password are generated per
+run, so no external Wi-Fi is involved.
 
-    uv run pytest board_pair --profile esp32 --peer-profile client:esp32s3 \\
-        --peer-port client:/dev/ttyUSB1 -s
+Each side runs with the outer side on lwIP's UDP or on an Arduino UDP
+(setOuterUdp, as for a W5500 on the Ethernet library): four modes per pair.
+Over Wi-Fi every pair of boards works, so run the full product; a pair that
+would need the same board twice is skipped:
+
+    uv run --env-file .env pytest board_pair --profiles=all --peer-profiles=all -s
 """
 
 import re
@@ -13,15 +17,35 @@ import secrets
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from helpers.wg_kernel import keypair  # noqa: E402
 
 
-def test_board_pair(dut, peers, record_property):
+MODES = [("lwip", "lwip"), ("outer", "lwip"), ("lwip", "outer"), ("outer", "outer")]
+
+
+def restart(board, ready):
+    """Starts the board afresh: the parametrized runs share one flashed board."""
+    board.write("RESTART\n")
+    board.expect("RESTART-OK", timeout=30)
+    board.expect(ready, timeout=30)
+
+
+def set_outer(board, mode):
+    board.write(f"OUTER {1 if mode == 'outer' else 0}\n")
+    board.expect("OUTER 1", timeout=5)
+
+
+@pytest.mark.parametrize("server_mode,client_mode", MODES, ids=[f"server_{s}-client_{c}" for s, c in MODES])
+def test_board_pair(dut, peers, record_property, server_mode, client_mode):
     client = peers["client"]
-    dut.expect("SERVER-WAIT-CONFIG", timeout=30)
-    client.expect("CLIENT-WAIT-CONFIG", timeout=30)
+    restart(dut, "SERVER-WAIT-CONFIG")
+    restart(client, "CLIENT-WAIT-CONFIG")
+    set_outer(dut, server_mode)
+    set_outer(client, client_mode)
 
     server_priv, server_pub = keypair()
     client_priv, client_pub = keypair()

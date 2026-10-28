@@ -41,10 +41,32 @@ host の DUT は Serial の接続を 1 回しか受け付けません。その�
 uv run --env-file .env pytest crypto_vectors core_pair bench_crypto --profile esp32 -s
 uv run --env-file .env pytest board_responder --profile esp32 -s
 uv run --env-file .env pytest board_responder --profile ch32v307 -s
-uv run --env-file .env pytest board_pair --profile esp32 --peer-profile client:esp32s3 -s
+uv run --env-file .env pytest board_pair --profiles=all --peer-profiles=all -s
 ```
 
+`board_responder` と `board_pair` は、外側の UDP を lwIP にした場合と、Arduino の `UDP` に差し替えた場合(`setOuterUdp()`)で動きます。`board_responder` は 3 通り(lwIP、差し替えてライブラリが回す、差し替えて `update()` で回す)、`board_pair` はサーバーとクライアントで 2×2 の 4 通りです。パラメータごとに、テストの最初に `RESTART` コマンドでボードを再起動します。
+
+`board_pair` は Wi-Fi なので、どのボードの組でも成り立ちます。そのため `--profiles=all --peer-profiles=all` の直積で回します。同じボードが両側に来る組は、プラグインが skip します。サーバーとクライアントの役を入れ替えるので、クライアント側のポートは `TEST_SERIAL_PORT_PEER_CLIENT_<PROFILE>` で profile ごとに書きます(`.env.example` を参照)。
+
 `board_responder` では PC 側から先にハンドシェイクします。PC が NAT の内側(WSL2 など)にあっても、返事は NAT を通って戻ってくるためです。ボードがエンドポイントを覚えた後は、ボードからの再ハンドシェイクも試します。
+
+## リリース前のフルテスト
+
+リリースの前に、ビルドをやり直して(`--clean`)全部を回します。つないだボードはすべて使い、ポートが書かれていないボードの試験は skip になります。
+
+```sh
+cd tests
+# 1. Linux カーネルの WireGuard との相互接続(ネットワーク名前空間の中)
+unshare -rn uv run pytest kernel_interop pypeer_selftest --clean
+
+# 2. host と、つないだすべてのボード。各スケッチの全 profile と、board_pair はボードの全組合せ
+uv run --env-file .env pytest --profiles=all --peer-profiles=all --clean
+```
+
+- 2 では、`kernel_interop` と `pypeer_selftest` が権限なしで skip されます。1 と分けているのはそのためです。実機の試験は PC の実ネットワークを使うので、名前空間の中では動きません
+- 2 には長時間試験の `board_responder/test_board_longrun.py`(1 ボード約 14 分)と、Wi-Fi 切断の試験も含まれます
+- skip を合格と取り違えないでください。最後の要約で、skip の理由が「ポート未設定」と「同じボードが両側」だけであることを確かめます(`-rs` で一覧が出ます)
+- ほかの人と共有しているボード(この環境の CH32V307 など)は、決められた手順で確保してから回してください
 
 ## 実機で計測する
 
