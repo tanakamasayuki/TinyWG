@@ -111,7 +111,7 @@ When the endpoint itself would be routed into wg0 (the outer UDP entering the tu
 - The initiator's TAI64N timestamps must increase. An MCU without an RTC is refused by the peer (Linux and others) after a reboot, as its timestamp looks old
 - The default is `gettimeofday()` (a wall clock set over NTP / SNTP). `setWallClock()` replaces it with a user function (an RTC, a value built from a boot counter in non-volatile storage, and so on; example in the advanced guide §6)
 - Within one boot the values sent keep increasing even if the wall clock steps back
-- Whether to build the boot-counter scheme into the library is `TBD`
+- `setTimestampReset(seconds)` on the responder: a peer that has sent neither a response nor data for that long has its last timestamp forgotten, and an older one is accepted. For clients with no clock on closed networks. Default 0 (never forget, as the standard). While a peer is silent, replaying a recorded initiation can then disrupt its traffic (no key leak, impersonation or injection)
 - A responder only compares received values and needs no wall clock
 
 ## 5. Non-functional requirements

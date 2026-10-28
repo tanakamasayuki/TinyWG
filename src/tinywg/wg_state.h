@@ -84,6 +84,8 @@ struct Peer {
     uint8_t lastTimestamp[12];  // greatest TAI64N accepted from this peer
     bool initiationReceived;
     uint32_t lastInitiationRxMs;
+    bool heardFrom;             // a response or data authenticated within the last ~24 days
+    uint32_t lastHeardMs;
 
     Handshake handshake;
     Session current;

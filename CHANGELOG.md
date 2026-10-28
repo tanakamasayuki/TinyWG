@@ -9,3 +9,5 @@
 - (JA) 英語版の SPEC.md、サンプルごとの README。
 - (EN) API reference (docs/api.md), in English and Japanese.
 - (JA) API リファレンス(docs/api.ja.md、日英)。
+- (EN) setTimestampReset(): a responder can accept clients whose clock went back after a reboot.
+- (JA) setTimestampReset(): 再起動で時計が戻ったクライアントをレスポンダが受け付けられる。

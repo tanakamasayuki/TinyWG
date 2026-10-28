@@ -91,6 +91,11 @@ public:
     // Inner MTU, from kMinMtu up to TINYWG_MTU. Larger packets are not sent.
     bool setMtu(uint16_t mtu);
     uint16_t mtu() const { return mtu_; }
+    // Seconds after which a silent peer's last handshake timestamp is
+    // forgotten, so a peer whose clock went back (a reboot without NTP or RTC)
+    // can connect again. Silent: no response or data authenticated in that
+    // time. 0 (the default) never forgets, as the WireGuard protocol does.
+    void setTimestampReset(uint16_t seconds) { timestampResetMs_ = seconds * 1000u; }
 
     int findPeer(const uint8_t publicKey[kKeyLen]) const;
     // The peer whose AllowedIPs best match addr (longest prefix), or -1.
@@ -137,6 +142,8 @@ private:
     void handshakeComplete(Peer *p, uint32_t nowMs);
     void anySent(Peer *p, uint32_t nowMs);
     void anyReceived(Peer *p, uint32_t nowMs);
+    void heardFrom(Peer *p, uint32_t nowMs);
+    bool timestampForgotten(const Peer *p, uint32_t nowMs) const;
     void wipePeerKeys(Peer *p);
 
     Transport *transport_;
@@ -144,6 +151,7 @@ private:
     WallClockFn wallClock_;
     bool started_;
     uint16_t mtu_;
+    uint32_t timestampResetMs_;
 
     uint8_t staticPrivate_[kKeyLen];
     uint8_t staticPublic_[kKeyLen];

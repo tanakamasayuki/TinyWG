@@ -25,6 +25,11 @@ public:
     // path is smaller than 1500 (PPPoE, LTE, another tunnel): MTU + 60 must fit.
     virtual bool setMtu(uint16_t mtu);
     uint16_t mtu() const { return device_.mtu(); }
+    // Seconds of silence after which a peer may connect with an older handshake
+    // timestamp, e.g. a client that rebooted with no NTP or RTC. 0 = never
+    // (the default, as in standard WireGuard). Meant for the side that accepts
+    // connections, on closed networks: see SPEC §6.
+    void setTimestampReset(uint16_t seconds);
     // Starts a handshake now instead of on the first packet.
     bool connect(int peer);
 

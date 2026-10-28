@@ -1,7 +1,8 @@
 // Two tinywg::Device engines wired back to back in one process, with a
 // simulated clock: handshake, data both ways, replay and tamper rejection,
-// AllowedIPs enforcement, rekey, passive keepalive, key zeroing and
-// handshake retransmission. Interop with a real WireGuard is kernel_interop/.
+// AllowedIPs enforcement, rekey, passive keepalive, key zeroing,
+// handshake retransmission and the timestamp reset for a rebooted peer.
+// Interop with a real WireGuard is kernel_interop/.
 
 #include <TinyWG.h>
 #include <string.h>
@@ -296,6 +297,68 @@ void setup()
         PeerStatus s;
         c.peerStatus(0, &s);
         EXPECT_TRUE("wrong psk rejected", !s.sessionUp && c.stats().rxHandshakeFail == 1);
+    }
+
+    // A rebooted A whose clock starts at 1970 again: B refuses its older
+    // timestamp while A's old session is active, and with setTimestampReset()
+    // accepts it once A has been silent that long.
+    {
+        static Device r;
+        static Wire rw;
+        rw.self = 0;
+        r.setWallClock([](uint64_t *s, uint32_t *ns) {
+            *s = g_now / 1000;
+            *ns = 0;
+        });
+        r.begin(priv[0], &rw);
+        r.addPeer(pub[1], psk);
+        r.addAllowedIp(0, ipB, 32);
+        r.setEndpoint(0, Endpoint{{127, 0, 0, 1}, 2});
+        g_dev[0].sendInner(pkt, n1, g_now);   // B hears from the old A just now
+        pump();
+        dropWire();
+
+        uint32_t stale = g_dev[1].stats().rxStaleTimestamp;
+        r.sendInner(pkt, n1, g_now);
+        static Datagram oldInit;
+        oldInit = g_wire[0];
+        dropWire();
+        g_dev[1].receiveOuter(oldInit.data, oldInit.len, oldInit.from, g_now);
+        EXPECT_TRUE("older timestamp refused", g_dev[1].stats().rxStaleTimestamp == stale + 1 && g_wireCount == 0);
+
+        g_dev[1].setTimestampReset(30);
+        g_now += 29000;
+        r.connect(0, g_now);
+        Datagram init = g_wire[0];
+        dropWire();
+        g_dev[1].receiveOuter(init.data, init.len, init.from, g_now);
+        EXPECT_TRUE("refused within reset time", g_dev[1].stats().rxStaleTimestamp == stale + 2 && g_wireCount == 0);
+
+        g_now += 6000;
+        r.connect(0, g_now);
+        init = g_wire[0];
+        dropWire();
+        uint32_t responded = g_dev[1].stats().handshakesResponded;
+        g_dev[1].receiveOuter(init.data, init.len, init.from, g_now);
+        EXPECT_TRUE("accepted after reset time", g_dev[1].stats().handshakesResponded == responded + 1);
+        Datagram resp = g_wire[0];
+        dropWire();
+        r.receiveOuter(resp.data, resp.len, resp.from, g_now);   // A confirms with a keepalive
+        Datagram conf = g_wire[0];
+        dropWire();
+        g_dev[1].receiveOuter(conf.data, conf.len, conf.from, g_now);
+        before = g_tr[1].inbox.count;
+        r.sendInner(pkt, n1, g_now);
+        Datagram data = g_wire[0];
+        dropWire();
+        g_dev[1].receiveOuter(data.data, data.len, data.from, g_now);
+        EXPECT_TRUE("rebooted peer delivers", g_tr[1].inbox.count == before + 1);
+
+        // Replaying the first, older initiation fails while the new session is active.
+        g_now += 1000;
+        g_dev[1].receiveOuter(oldInit.data, oldInit.len, oldInit.from, g_now);
+        EXPECT_TRUE("replay refused while active", g_dev[1].stats().rxStaleTimestamp == stale + 3);
+        g_dev[1].setTimestampReset(0);
     }
 
     Serial.print("TEST done ");

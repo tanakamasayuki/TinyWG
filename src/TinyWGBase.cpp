@@ -62,6 +62,13 @@ bool TinyWGBase::setMtu(uint16_t mtu)
     return ok;
 }
 
+void TinyWGBase::setTimestampReset(uint16_t seconds)
+{
+    lock();
+    device_.setTimestampReset(seconds);
+    unlock();
+}
+
 bool TinyWGBase::connect(int peer)
 {
     lock();

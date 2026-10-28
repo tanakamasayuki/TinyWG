@@ -130,7 +130,7 @@ void ReplayWindow::mark(uint64_t counter)
 
 Device::Device()
     : transport_(nullptr), random_(port::defaultRandom()), wallClock_(port::defaultWallClock), started_(false),
-      mtu_(TINYWG_MTU), lastTaiSeconds_(0), lastTaiNanos_(0)
+      mtu_(TINYWG_MTU), timestampResetMs_(0), lastTaiSeconds_(0), lastTaiNanos_(0)
 {
     memset(peers_, 0, sizeof(peers_));
     memset(&stats_, 0, sizeof(stats_));
@@ -348,6 +348,19 @@ void Device::anyReceived(Peer *p, uint32_t now)
     if (p->keepaliveSeconds) p->persistentKeepalive.arm(now + p->keepaliveSeconds * 1000u);
 }
 
+// Only messages that prove the peer holds a live session count: an initiation
+// can be a replay, and counting it would keep the timestamp from being forgotten.
+void Device::heardFrom(Peer *p, uint32_t now)
+{
+    p->heardFrom = true;
+    p->lastHeardMs = now;
+}
+
+bool Device::timestampForgotten(const Peer *p, uint32_t now) const
+{
+    return timestampResetMs_ && (!p->heardFrom || (now - p->lastHeardMs) >= timestampResetMs_);
+}
+
 void Device::sessionDerived(Peer *p, uint32_t now)
 {
     p->zeroKeys.arm(now + 3 * kRejectAfterTime);
@@ -498,7 +511,7 @@ void Device::handleInitiation(uint8_t *msg, size_t len, const Endpoint &from, ui
         stats_.rxHandshakeFail++;
         goto out;
     }
-    if (memcmp(timestamp, p->lastTimestamp, 12) <= 0) {
+    if (memcmp(timestamp, p->lastTimestamp, 12) <= 0 && !timestampForgotten(p, now)) {
         stats_.rxStaleTimestamp++;
         goto out;
     }
@@ -652,6 +665,7 @@ void Device::handleResponse(uint8_t *msg, size_t len, const Endpoint &from, uint
 
         p->endpoint = from;
         anyReceived(p, now);
+        heardFrom(p, now);
         sessionDerived(p, now);
         handshakeComplete(p, now);
         // Confirm the session to the responder: staged data, or a keepalive.
@@ -736,6 +750,7 @@ void Device::handleData(uint8_t *msg, size_t len, const Endpoint &from, uint32_t
     p->endpoint = from;
     p->rxBytes += len;
     anyReceived(p, now);
+    heardFrom(p, now);
 
     if (s == &p->next) {
         // The initiator's first data message confirms the session we responded with.
@@ -903,6 +918,8 @@ void Device::tick(uint32_t now)
             wipePeerKeys(p);
         }
         if (p->hasCookie && (now - p->cookieMs) >= kCookieLifetime) p->hasCookie = false;
+        // Before the 32-bit millisecond clock wraps and makes it look recent again.
+        if (p->heardFrom && (now - p->lastHeardMs) >= 0x7fffffffu) p->heardFrom = false;
     }
 }
 

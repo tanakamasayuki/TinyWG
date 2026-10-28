@@ -15,6 +15,7 @@ onPacket	KEYWORD2
 setRandom	KEYWORD2
 setWallClock	KEYWORD2
 setMtu	KEYWORD2
+setTimestampReset	KEYWORD2
 mtu	KEYWORD2
 stats	KEYWORD2
 send	KEYWORD2

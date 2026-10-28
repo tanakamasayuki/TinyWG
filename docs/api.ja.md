@@ -34,6 +34,12 @@
 | `virtual bool setMtu(uint16_t mtu)` | 成否 | 内側の MTU。576 〜 `TINYWG_MTU`。範囲外は false で、値は変わらない。いつでも呼べる。`TinyWG` では `wg0` の MTU も変わる |
 | `uint16_t mtu() const` | 今の MTU | |
 
+### 時刻チェック
+
+| メソッド | 説明 |
+|---|---|
+| `void setTimestampReset(uint16_t seconds)` | 応答もデータも `seconds` 秒届いていないピアについて、前回のハンドシェイクの時刻を忘れる。時計が戻ったクライアント(NTP も RTC もなく再起動したもの)を受け付けるため。0(既定)は忘れない(標準の WireGuard と同じ)。いつでも呼べ、`begin()` をまたいで残る。再送攻撃への影響は[上級者ガイド §6](guide-advanced.ja.md#6-時刻tai64n) |
+
 ### 状態
 
 | メソッド | 戻り値 | 説明 |
@@ -94,7 +100,7 @@ lwIP にも Arduino にも依存しないエンジンです。スレッド安全
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | 秘密鍵と出力先で始める。乱数源がなければ false |
 | `void end()` | ピアと鍵を消去する |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | `TinyWGBase` と同じ |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` | `TinyWGBase` と同じ |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` | `TinyWGBase` と同じ |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | アドレスをバイト列で渡す |
 | `int findPeer(const uint8_t publicKey[32]) const` | 公開鍵からピアの番号を探す。なければ -1 |
 | `int routePeer(const uint8_t addr[4]) const` | そのアドレス宛てに送るピア(AllowedIPs の最長一致)。なければ -1 |

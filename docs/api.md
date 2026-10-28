@@ -34,6 +34,12 @@ Key strings are always the 44-character Base64 printed by `wg genkey` / `wg pubk
 | `virtual bool setMtu(uint16_t mtu)` | success | Inner MTU, 576 to `TINYWG_MTU`. Out of range: false, nothing changes. Any time. With `TinyWG`, `wg0`'s MTU changes too |
 | `uint16_t mtu() const` | the MTU in use | |
 
+### Timestamp check
+
+| Method | Description |
+|---|---|
+| `void setTimestampReset(uint16_t seconds)` | Forgets a peer's last handshake timestamp once neither a response nor data has come from it for `seconds`, so a client whose clock went back (rebooted with no NTP or RTC) can connect. 0 (the default) never forgets, as standard WireGuard. Any time; kept across `begin()`. What it means for replays: [advanced guide §6](guide-advanced.md#6-time-tai64n) |
+
 ### State
 
 | Method | Returns | Description |
@@ -94,7 +100,7 @@ The engine, with no lwIP or Arduino dependency. Not thread-safe: the caller seri
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | Starts with the private key and the output. false with no random source |
 | `void end()` | Wipes peers and keys |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | As in `TinyWGBase` |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` | As in `TinyWGBase` |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` | As in `TinyWGBase` |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | Address as bytes |
 | `int findPeer(const uint8_t publicKey[32]) const` | The peer with this public key, or -1 |
 | `int routePeer(const uint8_t addr[4]) const` | The peer a packet to this address goes to (longest AllowedIPs match), or -1 |

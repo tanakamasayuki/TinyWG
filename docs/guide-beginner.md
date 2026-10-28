@@ -152,7 +152,12 @@ That's it: everything between the ESP32 and the PC is now encrypted.
 
 The side that starts the connection (the client) puts the current time into every handshake. The other side refuses a handshake whose time is not newer than the last one, as it might be a replay.
 
-Most microcontrollers restart their clock at 1970 on every power-up. Without a real clock, the other side would refuse every boot after the first. That is why the example sets the clock over NTP before `wg.begin()`. **When TinyWG is the client, always set the clock first.**
+Whether the time is correct is not checked: it only has to be later than the last one.
+
+Most microcontrollers restart their clock at 1970 on every power-up. Left like that, the other side refuses every boot after the first. Either of these fixes it:
+
+- **Set the client's clock**: the example sets it over NTP before `wg.begin()`. The easiest way when the device can reach the Internet
+- **When the server is TinyWG, call `wg.setTimestampReset(30)` on the server**: a client it has not heard from for 30 s is accepted even if its clock went back. A client with no clock connects about 30 s after a reboot. Meant for closed networks with no Internet (caveats in the [advanced guide §6](guide-advanced.md#6-time-tai64n))
 
 A device that only waits for others to connect (a server) does not need the clock.
 
@@ -211,7 +216,7 @@ Serial.printf("init=%u done=%u badmac=%u unknown=%u hsfail=%u stale=%u notallowe
 | `addPeer()` returns -1 | Called before `begin()`; the public key string is malformed; the same key was added twice; the peer table is full (4 by default) |
 | `init` grows but `done` does not | Nothing reaches the PC, or the PC refuses it. Check the Endpoint address and port, the PC's firewall (`51820/udp`) and `PublicKey` under the PC's `[Peer]` |
 | `sudo wg show` on the PC shows nothing | The ESP32's packets do not reach the PC. Same LAN? Is the Endpoint the PC's address? |
-| Works on the first boot only | The clock is not set (§8). The other side silently drops handshakes with an old time |
+| Works on the first boot only | The client's clock went back (§8). The other side silently drops handshakes with an old time (`stale` grows) |
 | `badmac` grows | The other side has the wrong public key for this device |
 | `unknown` grows | A peer whose public key is not registered tried to connect (the key given to `addPeer()` is wrong) |
 | `notallowed` grows | The peer's tunnel address is outside what `addAllowedIp()` allows |

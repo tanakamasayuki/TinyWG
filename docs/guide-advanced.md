@@ -181,6 +181,23 @@ Once you switch to this, the peer remembers the large value, and going back to r
 
 A device that only answers handshakes (a responder) does not use the clock.
 
+### Accepting clients with no clock
+
+When TinyWG is the side that accepts connections, `setTimestampReset()` makes it forget the timestamp record of a peer it has heard nothing from for a while. Use it on closed networks and the like, where the clients have neither NTP nor an RTC.
+
+```cpp
+wg.setTimestampReset(30);   // a peer silent for 30 s (no response, no data) is accepted with an older time
+```
+
+- The default is 0: never forget, as standard WireGuard
+- Only authenticated handshake responses and data (keepalives included) count as heard. An initiation does not, as it may be a replay
+- A rebooted client connects once this many seconds have passed since it last talked. Clients resend the handshake every 5 s for up to 90 s, so a value under 90 lets them connect within that
+- With persistent keepalive, make it longer than the keepalive interval. Shorter, and a healthy peer counts as silent between keepalives
+
+The price is a wider opening for replays. A recorded initiation sent again is accepted for a peer while it is silent. That can briefly redirect traffic for that peer or break a handshake in progress, stopping traffic for a while. It cannot leak keys, impersonate the peer or inject data. A peer that is talking still has replays refused as before.
+
+Linux and the official apps have no such setting: when they are the server, set the client's clock.
+
 ## 7. Random numbers
 
 Key generation and the ephemeral key of every handshake need cryptographic random numbers.
