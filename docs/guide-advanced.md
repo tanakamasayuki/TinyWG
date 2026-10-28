@@ -528,6 +528,6 @@ Time is a 32-bit millisecond count like `millis()`; the wrap after 49.7 days is 
 
 ## 14. Tests and measurements
 
-- The tests and how to run them: [tests/README.ja.md](../tests/README.ja.md)
+- The tests and how to run them: [tests/README.md](../tests/README.md)
 - Interoperability with the Linux kernel WireGuard is checked by automated tests
 - On-board measurements (X25519, handshake, AEAD speed, ping, throughput, long runs, Wi-Fi outages): [SPEC.md](../SPEC.md) §5.2

@@ -1,5 +1,7 @@
 # テスト
 
+[English](README.md)
+
 PCMFlowUDP と同じく、[pytest-embedded](https://docs.espressif.com/projects/pytest-embedded/en/latest/) + Arduino CLI で動かします。既定のプロファイルは `lang-ship:host`(PC 上で動くスケッチ)です。
 
 ```sh
@@ -14,7 +16,7 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 |---|---|---|
 | `smoke/` | ビルドとハーネスの確認 | host / esp32 / ch32v307 / picow |
 | `crypto_vectors/` | BLAKE2s、MAC、KDF、X25519、ChaCha20-Poly1305 の出力を、Python の `hashlib` / `cryptography` で独立に計算した値と照合。AEAD の改ざん検出、低位数点の拒否、Base64 | 同上 |
-| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い、Cookie Reply の受信と mac2、`CookieGuard`(負荷時の cookie、送信元に結びついた mac2)、再起動して時刻が戻ったピアと `setTimestampReset()` | 同上 |
+| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い、Cookie Reply の受信と mac2、`CookieGuard`(負荷時の cookie、送信元に結びついた mac2)、ハンドシェイク待ちのパケットと `setStagingBuffer()`、再起動して時刻が戻ったピアと `setTimestampReset()` | 同上 |
 | `time_server/` | `TinyWGTimeServer` の応答(モード、バージョン、stratum、元の送信時刻、配る時刻)、無視すべき要求、chrony があれば実際の NTP クライアントからの問い合わせ | host のみ |
 | `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信、`CookieGuard` の cookie をカーネルが受け取って再送、wg-quick 形式のテキストからの設定(`beginConfig()`) | host のみ |
 | `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / esp32s3 / ch32v307 / picow |
@@ -23,7 +25,7 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 | `board_responder/test_board_longrun.py` | 約 14 分の長時間試験。ボード側からの鍵の更新(120 秒)、persistent keepalive、無通信での鍵のゼロ化(540 秒)と復帰。`TEST_LONG=1` を付けたときだけ動く | esp32 / esp32s3 / ch32v307 |
 | `board_responder/test_board_config.py` | wg-quick 形式のテキストから `TinyWG::beginConfig()` で wg0 を立ち上げ、PC から接続して echo | esp32 / esp32s3 / ch32v307 |
 | `board_responder/test_board_wifi.py` | Wi-Fi の切断と再接続(`WIFIDROP`)。短い切断のあと同じ鍵で復帰、AP から離れている間に始めたハンドシェイクが再接続後の再送で成立、PC 側のポートの変更(NAT の割り当て直し)にボードが追従 | esp32 / esp32s3 |
-| `board_pair/` | 実機 2 台。主 DUT が SoftAP を立てて WireGuard サーバー、`peer_client/` が接続してクライアント。トンネル越しの TCP echo(32 KB) | esp32 + esp32s3(外部 AP 不要) |
+| `board_pair/` | 実機 2 台。主 DUT が SoftAP を立てて WireGuard サーバー、`peer_client/` が接続してクライアント。トンネル越しの TCP echo(32 KB)。両側の外側のモード 4 通り | esp32 / esp32s3 の全組合せ(外部 AP 不要) |
 
 ## kernel_interop の仕組み
 
