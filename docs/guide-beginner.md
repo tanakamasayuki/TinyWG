@@ -154,12 +154,44 @@ The side that starts the connection (the client) puts the current time into ever
 
 Whether the time is correct is not checked: it only has to be later than the last one.
 
-Most microcontrollers restart their clock at 1970 on every power-up. Left like that, the other side refuses every boot after the first. Either of these fixes it:
+Most microcontrollers restart their clock at 1970 on every power-up. Left like that, the other side refuses every boot after the first.
 
-- **Set the client's clock**: the example sets it over NTP before `wg.begin()`. The easiest way when the device can reach the Internet
-- **When the server is TinyWG, call `wg.setTimestampReset(30)` on the server**: a client it has not heard from for 30 s is accepted even if its clock went back. A client with no clock connects about 30 s after a reboot. Meant for closed networks with no Internet (caveats in the [advanced guide §6](guide-advanced.md#6-time-tai64n))
+### 8.1 Making it connect
 
-A device that only waits for others to connect (a server) does not need the clock.
+- **When the server is Linux or an official app**: the client's clock must not go back across reboots. Set it over NTP as in 8.2 (an RTC works too)
+- **When the server is TinyWG**: call `wg.setTimestampReset(30)` on the server. A client it has not heard from for 30 s is accepted even if its clock went back, so a client with no clock connects about 30 s after a reboot (caveats in the [advanced guide §6](guide-advanced.md#6-time-tai64n)). NTP is then not needed to connect
+
+The server's own clock does not matter for connecting. Set it over NTP when it can reach the Internet; otherwise let it go back at each reboot.
+
+### 8.2 Where to get the time from
+
+Pick the source by the network the client is on.
+
+| Network | Sync with | Time you get |
+|---|---|---|
+| Reaches the Internet | A public NTP server such as `pool.ntp.org` (the examples' default) | The real time. The most dependable |
+| Local network, and the WG server keeps its clock set | The WG server's address (the same as the WG endpoint), with the simple NTP server running on it | The real time |
+| Local network, with an NTP server set up beyond WG (inside the tunnel) | Its tunnel address, after connecting | The real time. Connecting comes first, so it needs a server that accepts clients with no clock (8.1) |
+| No server with the right time on the network | Nothing, or the WG server | Neither is the real time. Syncing with the WG server makes the server's and the clients' log times agree |
+
+**Running the simple NTP server on the WG server**: TinyWG has a small class, `TinyWGTimeServer`, that answers NTP with the device's own clock. The `Esp32Server` example turns it on with `kTimeServer`; it answers on UDP port 123 of the same LAN address as WG. It serves the real time when the server set its clock over the Internet, and otherwise the time since boot (counting from 1970, going back when the server reboots).
+
+On the client only the server address changes:
+
+```cpp
+// Sync with the WG server's address (before wg.begin())
+configTime(0, 0, "192.168.1.10");
+struct tm now;
+getLocalTime(&now, 10000);   // waits up to 10 s
+```
+
+```cpp
+// Sync with an NTP server beyond WG (after connecting)
+while (!wg.peerUp(server)) delay(100);
+configTime(0, 0, "10.9.0.53");
+```
+
+When the Internet is reachable, a public NTP server is the most dependable. NTP to a server on the local network, outside the tunnel, is neither encrypted nor authenticated.
 
 ## 9. Boards other than the ESP32
 

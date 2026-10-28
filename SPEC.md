@@ -113,6 +113,7 @@ When the endpoint itself would be routed into wg0 (the outer UDP entering the tu
 - Within one boot the values sent keep increasing even if the wall clock steps back
 - `setTimestampReset(seconds)` on the responder: a peer that has sent neither a response nor data for that long has its last timestamp forgotten, and an older one is accepted. For clients with no clock on closed networks. Default 0 (never forget, as the standard). While a peer is silent, replaying a recorded initiation can then disrupt its traffic (no key leak, impersonation or injection)
 - A responder only compares received values and needs no wall clock
+- Simple NTP server `TinyWGTimeServer` (optional): the WG server hands out its own clock over SNTP, so clients can sync with the same address as the WG endpoint. No cost when unused. Which source to use where: beginner's guide §8.2
 
 ## 5. Non-functional requirements
 
@@ -154,7 +155,7 @@ Candidates for savings (decided by measurement): disabling the staged packet, fe
 
 Two boards (`tests/board_pair`, ESP32 as SoftAP and server, S3 as client): handshake 171 ms (Wi-Fi round trips included), a 32 KB TCP echo through the tunnel at about 376 KiB/s both ways, no errors.
 
-PC → board (`tests/board_responder`, through a home AP, started by the Python peer on the PC): handshake round trip ESP32 94 ms / S3 100 ms, ping through the tunnel about 3 ms, 100 round trips of a 200 B UDP echo (both ways about 61 KiB/s on ESP32, 69 KiB/s on S3; one at a time, so bound by Wi-Fi latency), a new handshake from the board, PSK, and refusal of an unknown key all pass. The CH32V307 passes the same test over Ethernet (handshake round trip 106 ms, ping about 1 ms, 100 UDP echoes at about 158 KiB/s both ways). `crypto_vectors` / `core_pair` / `smoke` also pass on the boards.
+PC → board (`tests/board_responder`, through a home AP, started by the Python peer on the PC): handshake round trip ESP32 94 ms / S3 100 ms, ping through the tunnel about 3 ms, 100 round trips of a 200 B UDP echo (both ways about 61 KiB/s on ESP32, 69 KiB/s on S3; one at a time, so bound by Wi-Fi latency), a new handshake from the board, PSK, and refusal of an unknown key all pass. The CH32V307 passes the same test over Ethernet (handshake round trip 106 ms, ping about 1 ms, 100 UDP echoes at about 158 KiB/s both ways). `crypto_vectors` / `core_pair` / `smoke` also pass on the boards. `TinyWGTimeServer` on an ESP32-S3 was synced from by the ESP32's SNTP client (lwIP) and by chrony on a PC.
 
 Long run (`tests/board_responder/test_board_longrun.py`, ESP32, about 14 minutes): the board rekeys at exactly 120 s (no echo lost meanwhile), persistent keepalive every 15 s gives 4 in 65 s, with no traffic the keys are zeroed 547 s after the last handshake (checked every 20 s, so consistent with 540 s), and a handshake from the PC brings it back. The CH32V307 (Ethernet; lwIP's timers run after `loop()` and inside `delay()`) gives the same: rekey at 120 s (nothing lost), 5 keepalives in 65 s (including the one sent when it was set), keys zeroed after 547 s, then back again.
 

@@ -18,10 +18,12 @@ Makes an ESP32 a WireGuard server for two peers. It runs a TCP echo server (port
 | `kTunnelIp` / `kTunnelMask` | The server's tunnel address (`10.9.0.1/24` by default) |
 | `kListenPort` | UDP port to listen on (51820 by default) |
 | `kPeers` | Each peer's public key and tunnel address (`10.9.0.2` and `10.9.0.3` by default) |
+| `kTimestampReset` | Accept a client with no clock this many seconds after it last talked (30 by default; 0 refuses, as standard) |
+| `kTimeServer` | Hand out this server's time over NTP on UDP port 123 of its LAN address (true by default) |
 
 No peer IP address (Endpoint) is needed: the server learns it from the first handshake and follows the peer if it moves.
 
-As a server only, it needs no clock either.
+The server's clock does not matter for connecting. At start-up it tries to set it from `pool.ntp.org`; without the Internet it counts from 1970. Clients can use the server's LAN address as their NTP server; the time is the real one only when the server could set its clock over the Internet ([beginner's guide §8](../../docs/guide-beginner.md#8-about-the-clock-important)).
 
 ## Peer side
 

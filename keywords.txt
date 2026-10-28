@@ -1,6 +1,7 @@
 TinyWG	KEYWORD1
 TinyWGUdp	KEYWORD1
 TinyWGBase	KEYWORD1
+TinyWGTimeServer	KEYWORD1
 addPeer	KEYWORD2
 removePeer	KEYWORD2
 addAllowedIp	KEYWORD2
@@ -16,6 +17,7 @@ setRandom	KEYWORD2
 setWallClock	KEYWORD2
 setMtu	KEYWORD2
 setTimestampReset	KEYWORD2
+setClock	KEYWORD2
 mtu	KEYWORD2
 stats	KEYWORD2
 send	KEYWORD2

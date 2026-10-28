@@ -113,6 +113,7 @@ wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がト�
 - 1 回の起動の中では、壁時計が戻っても送る値を単調増加させる
 - レスポンダ側の `setTimestampReset(秒)`:応答もデータも指定秒数届いていないピアは、前回の時刻を忘れて古い時刻でも受け付ける。時計のないクライアントを閉域網で使うため。既定 0(忘れない、標準どおり)。何も届いていない間のピアには、記録したハンドシェイク開始の再送で通信を止める妨害ができるようになる(鍵の漏えい、なりすまし、注入は起きない)
 - レスポンダは受信値の比較のみで、壁時計は不要
+- 簡易 NTP サーバー `TinyWGTimeServer`(任意):WG サーバーが自分の時計を SNTP で配り、クライアントは WG の接続先と同じアドレスで時刻を合わせられる。使わなければコスト 0。どこに合わせるかの指針は初心者ガイド §8.2
 
 ## 5. 非機能要件
 
@@ -154,7 +155,7 @@ RAM の内訳(host 64 ビットでの `sizeof`): `Device` 6.3 KB(ピア 1 つ 79
 
 実機 2 台(`tests/board_pair`、ESP32 が SoftAP + サーバー、S3 がクライアント): ハンドシェイク 171 ms(Wi-Fi の往復込み)、トンネル越しの TCP echo 32 KB を往復合計 約 376 KiB/s、エラーなし。
 
-PC → ボード(`tests/board_responder`、家庭用 AP 経由、PC の Python ピアが開始): ハンドシェイク往復 ESP32 94 ms / S3 100 ms、トンネル越しの ping 約 3 ms、200 B の UDP echo 100 往復(往復合計 ESP32 約 61 KiB/s、S3 約 69 KiB/s。1 往復ずつ待つため Wi-Fi の遅延律速)、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否まで通過。CH32V307 も Ethernet で同じ試験に通過(ハンドシェイク往復 106 ms、ping 約 1 ms、UDP echo 100 往復で往復合計 約 158 KiB/s)。`crypto_vectors` / `core_pair` / `smoke` も実機で通過。
+PC → ボード(`tests/board_responder`、家庭用 AP 経由、PC の Python ピアが開始): ハンドシェイク往復 ESP32 94 ms / S3 100 ms、トンネル越しの ping 約 3 ms、200 B の UDP echo 100 往復(往復合計 ESP32 約 61 KiB/s、S3 約 69 KiB/s。1 往復ずつ待つため Wi-Fi の遅延律速)、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否まで通過。CH32V307 も Ethernet で同じ試験に通過(ハンドシェイク往復 106 ms、ping 約 1 ms、UDP echo 100 往復で往復合計 約 158 KiB/s)。`crypto_vectors` / `core_pair` / `smoke` も実機で通過。`TinyWGTimeServer` は、ESP32-S3 上のサーバーに ESP32 の SNTP クライアント(lwIP)と PC の chrony が同期できることを確認。
 
 長時間試験(`tests/board_responder/test_board_longrun.py`、ESP32、約 14 分): ボード側からの鍵の更新が 120 秒ちょうど(その間の echo の取りこぼし 0)、persistent keepalive 15 秒で 65 秒間に 4 回、無通信で最後のハンドシェイクから 547 秒後に鍵のゼロ化(20 秒ごとの確認なので 540 秒と矛盾しない)、その後 PC からのハンドシェイクで復帰。CH32V307(Ethernet、lwIP のタイマーは `loop()` の後と `delay()` の中で回る)でも同じ結果: 鍵の更新 120 秒(取りこぼし 0)、keepalive 65 秒間に 5 回(設定した時点の 1 回を含む)、鍵のゼロ化 547 秒後、その後の復帰。
 

@@ -198,6 +198,35 @@ The price is a wider opening for replays. A recorded initiation sent again is ac
 
 Linux and the official apps have no such setting: when they are the server, set the client's clock.
 
+### Simple NTP server (`TinyWGTimeServer`)
+
+It answers NTP (SNTP) on the WG server's LAN address with the device's own clock, so clients can use the WG endpoint address as their NTP server too. Which source to use on which network: [beginner's guide §8.2](guide-beginner.md#82-where-to-get-the-time-from).
+
+```cpp
+WiFiUDP ntpUdp;               // a UDP object for NTP only, not the one TinyWGUdp uses
+TinyWGTimeServer timeServer;
+
+void setup()
+{
+    // ...
+    configTime(0, 0, "pool.ntp.org");   // real time when online, otherwise counting from 1970
+    timeServer.begin(ntpUdp);           // UDP port 123
+}
+
+void loop()
+{
+    timeServer.update();                // answers the requests that arrived
+    // ...
+}
+```
+
+- The time served is `gettimeofday()` by default (the clock TinyWG uses for handshakes). `setClock()` replaces it, e.g. with a function that reads an RTC
+- Replies carry stratum 10 and reference ID `LOCL` (as chrony's `local stratum 10`). They never set the leap warning (the "unsynchronised" mark), even when the clock is not set, as some clients refuse such replies
+- Call `update()` from `loop()`, and from inside anything that blocks for long, so replies are not late
+- It costs nothing when unused: with no instance, neither flash nor RAM grows (checked on ESP32 and CH32V307)
+
+NTP replies are not authenticated. An attacker on the same network can answer with a time far in the future. The client's handshake timestamps then jump ahead, and once its clock is right again its handshakes are refused. With `setTimestampReset()` on a TinyWG server, that clears after the set time. A Linux server refuses until its WireGuard restarts.
+
 ## 7. Random numbers
 
 Key generation and the ephemeral key of every handshake need cryptographic random numbers.

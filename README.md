@@ -7,6 +7,7 @@ A portable WireGuard implementation for Arduino. It works as **both initiator (c
 - The protocol engine (`tinywg::Device`) depends on neither lwIP nor the Arduino API.
 - `TinyWG` is an lwIP network interface (wg0): existing lwIP code — `WiFiClient` / `NetworkClient`, `WiFiServer`, an MQTT broker — runs through the tunnel unchanged.
 - `TinyWGUdp` runs over any Arduino `UDP`; the sketch handles the inner IPv4 packets itself.
+- It works on closed networks with no Internet: a server can accept clients with no clock (`setTimestampReset()`) and hand out its time with a simple NTP server (`TinyWGTimeServer`).
 - Interoperability with the Linux kernel WireGuard is covered by automated tests.
 
 Some uses:

@@ -40,7 +40,11 @@ void setup()
     Serial.println(WiFi.localIP());
 
     // en: The handshake timestamp must not go back across reboots: set the clock first.
+    //     On a network with no Internet, use an NTP server inside it, e.g. the WireGuard
+    //     server's address when it runs TinyWGTimeServer (docs/guide-beginner.md §8).
     // ja: ハンドシェイクのタイムスタンプは再起動をまたいで戻れないので、先に時刻を合わせる。
+    //     インターネットのない網では、網の中の NTP サーバーを使う。WireGuard サーバーが
+    //     TinyWGTimeServer を動かしていれば、そのアドレス(docs/guide-beginner.ja.md §8)。
     configTime(0, 0, "pool.ntp.org");
     struct tm now;
     getLocalTime(&now, 10000);

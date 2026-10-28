@@ -7,6 +7,7 @@
 - [`TinyWGBase`](#tinywgbase): methods shared by `TinyWG` and `TinyWGUdp`
 - [`TinyWG`](#tinywg): the lwIP network interface `wg0`
 - [`TinyWGUdp`](#tinywgudp): raw IPv4 packets over any Arduino `UDP`
+- [`TinyWGTimeServer`](#tinywgtimeserver): an optional simple NTP server
 - [`tinywg::Device`](#tinywgdevice): the protocol engine
 - [Types](#types): `SendResult`, `PeerStatus`, `Stats`, `Endpoint`, function types
 - [Key functions](#key-functions)
@@ -90,6 +91,17 @@ typedef void (*PacketHandler)(int peer, uint8_t *packet, size_t len, void *conte
 ```
 
 `packet` may be modified, and the handler may call `send()`.
+
+## TinyWGTimeServer
+
+A small server that answers NTP (SNTP) with the device's own clock. Works over any core's `UDP`. How to use it: [advanced guide §6](guide-advanced.md#simple-ntp-server-tinywgtimeserver).
+
+| Method | Returns | Description |
+|---|---|---|
+| `bool begin(UDP &udp, uint16_t port = 123)` | success | Opens `udp` on `port`. Give it a `UDP` of its own |
+| `void end()` | | Closes `udp` |
+| `void update()` | | Answers the requests that arrived. Call from `loop()` |
+| `void setClock(tinywg::WallClockFn fn)` | | Replaces the clock served. The default is `gettimeofday()` |
 
 ## tinywg::Device
 

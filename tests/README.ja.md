@@ -4,7 +4,7 @@ PCMFlowUDP と同じく、[pytest-embedded](https://docs.espressif.com/projects/
 
 ```sh
 cd tests
-uv run pytest smoke crypto_vectors core_pair bench_crypto
+uv run pytest smoke crypto_vectors core_pair time_server bench_crypto
 unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard との相互接続
 ```
 
@@ -14,7 +14,8 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 |---|---|---|
 | `smoke/` | ビルドとハーネスの確認 | host / esp32 / ch32v307 / picow |
 | `crypto_vectors/` | BLAKE2s、MAC、KDF、X25519、ChaCha20-Poly1305 の出力を、Python の `hashlib` / `cryptography` で独立に計算した値と照合。AEAD の改ざん検出、低位数点の拒否、Base64 | 同上 |
-| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い | 同上 |
+| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い、再起動して時刻が戻ったピアと `setTimestampReset()` | 同上 |
+| `time_server/` | `TinyWGTimeServer` の応答(モード、バージョン、stratum、元の送信時刻、配る時刻)、無視すべき要求、chrony があれば実際の NTP クライアントからの問い合わせ | host のみ |
 | `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信 | host のみ |
 | `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / esp32s3 / ch32v307 / picow |
 | `pypeer_selftest/` | 実機テストで PC 側に使う Python 製 WireGuard ピア(`helpers/wg_peer.py`)を、カーネル WireGuard と突き合わせて検証(イニシエータ / レスポンダ、PSK あり) | PC のみ(スケッチなし) |

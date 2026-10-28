@@ -7,6 +7,7 @@
 - [`TinyWGBase`](#tinywgbase): `TinyWG` と `TinyWGUdp` に共通のメソッド
 - [`TinyWG`](#tinywg): lwIP のネットワークインターフェース `wg0`
 - [`TinyWGUdp`](#tinywgudp): 任意の Arduino `UDP` の上で、生の IPv4 パケットを扱う
+- [`TinyWGTimeServer`](#tinywgtimeserver): 必要なら使う簡易 NTP サーバー
 - [`tinywg::Device`](#tinywgdevice): プロトコルエンジン
 - [型](#型): `SendResult`、`PeerStatus`、`Stats`、`Endpoint`、関数の型
 - [鍵の関数](#鍵の関数)
@@ -90,6 +91,17 @@ typedef void (*PacketHandler)(int peer, uint8_t *packet, size_t len, void *conte
 ```
 
 `packet` は書き換えて構いません。ハンドラの中から `send()` を呼んでも構いません。
+
+## TinyWGTimeServer
+
+自分の時計の時刻を NTP(SNTP)で答える、小さなサーバー。どのコアの `UDP` でも動く。使い方は[上級者ガイド §6](guide-advanced.ja.md#簡易-ntp-サーバーtinywgtimeserver)。
+
+| メソッド | 戻り値 | 説明 |
+|---|---|---|
+| `bool begin(UDP &udp, uint16_t port = 123)` | 成否 | `udp` を `port` で開く。NTP 専用の `UDP` を渡す |
+| `void end()` | | `udp` を閉じる |
+| `void update()` | | 届いた問い合わせに答える。`loop()` から呼ぶ |
+| `void setClock(tinywg::WallClockFn fn)` | | 答える時刻の取得方法を差し替える。既定は `gettimeofday()` |
 
 ## tinywg::Device
 

@@ -197,6 +197,35 @@ wg.setTimestampReset(30);   // 30 秒、応答もデータも届いていない�
 
 相手が Linux や公式アプリのときは、そちらにこの設定はありません。クライアントの時刻を合わせてください。
 
+### 簡易 NTP サーバー(`TinyWGTimeServer`)
+
+WG サーバーの LAN のアドレスで、自分の時計の時刻を NTP(SNTP)で答えます。クライアントは、WG の接続先と同じアドレスを NTP の問い合わせ先にできます。どの網でどこに合わせるかは[初心者ガイド §8.2](guide-beginner.ja.md#82-ntp-でどこに合わせるか)にあります。
+
+```cpp
+WiFiUDP ntpUdp;               // NTP 専用の UDP。TinyWGUdp と同じものは使わない
+TinyWGTimeServer timeServer;
+
+void setup()
+{
+    // ...
+    configTime(0, 0, "pool.ntp.org");   // つながれば実時刻、つながらなければ 1970 年から
+    timeServer.begin(ntpUdp);           // UDP 123 番
+}
+
+void loop()
+{
+    timeServer.update();                // 届いた問い合わせに答える
+    // ...
+}
+```
+
+- 答える時刻は既定で `gettimeofday()` です(TinyWG がハンドシェイクに使う時計と同じ)。`setClock()` で RTC を読む関数などに差し替えられます
+- 応答は stratum 10、参照 ID は `LOCL` です(chrony の `local stratum 10` と同じ扱い)。時計が合っていなくても、うるう秒の警告(未同期の印)は付けません。付けると受け付けないクライアントがあるためです
+- `update()` は `loop()` から呼びます。長く止まる処理の中でも呼ぶと、応答が遅れません
+- 使わなければコストはかかりません。インスタンスを作らなければ、Flash も RAM も増えません(ESP32 と CH32V307 で確認)
+
+NTP の応答には認証がありません。同じ網にいる攻撃者は、遠い未来の時刻を返せます。そうすると、クライアントのハンドシェイクの時刻が未来に飛び、時刻が正しく戻ったあとの接続が拒否されます。TinyWG のサーバーで `setTimestampReset()` を使っていれば、拒否は設定した秒数で解けます。Linux のサーバーでは、そちらの WireGuard を再起動するまで解けません。
+
 ## 7. 乱数
 
 鍵の生成と、ハンドシェイクごとの一時鍵に、暗号用の乱数を使います。
