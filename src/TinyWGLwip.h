@@ -21,7 +21,15 @@
 #include <Network.h>   // brings the Network library (and its lwIP) into the build
 #endif
 
-#if __has_include(<lwip/netif.h>)
+#if defined(ARDUINO_ARCH_RP2040) && defined(__FREERTOS)
+// arduino-pico in FreeRTOS mode runs lwIP in a task of its own, which TinyWG
+// does not support. TinyWGUdp, tinywg::Device and TinyWGTimeServer still work.
+template <bool Supported = false>
+struct TinyWGNotInFreeRtos {
+    static_assert(Supported, "TinyWG (wg0 on lwIP) does not support arduino-pico's FreeRTOS mode: use TinyWGUdp");
+};
+using TinyWG = TinyWGNotInFreeRtos<>;
+#elif __has_include(<lwip/netif.h>)
 #define TINYWG_HAS_LWIP 1
 
 #include <lwip/netif.h>

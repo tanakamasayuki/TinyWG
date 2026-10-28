@@ -38,7 +38,7 @@ tinywg::Device    プロトコルエンジン(ハンドシェイク、セッシ�
 | コア | 排他 | 注意 |
 |---|---|---|
 | ESP32 | `LOCK_TCPIP_CORE()` | lwIP のコールバックの中(`WiFi.onEvent` の一部、raw API のコールバック)から公開メソッドを呼ぶとデッドロックする |
-| arduino-pico | `LWIPMutex` | FreeRTOS モードは未対応(コンパイルエラーにしている) |
+| arduino-pico | `LWIPMutex` | FreeRTOS モードでは `TinyWG` は使えない(使うとビルド時にその旨のエラーになる)。`TinyWGUdp`、`Device`、`TinyWGTimeServer` は使える |
 | CH32V | なし | lwIP は `loop()` が 1 回終わるたびと、`delay()` の中でしか動かない。`loop()` を長くふさぐと、ハンドシェイクもタイマーも止まる |
 
 `wg.device()` でエンジンを直接触るときは、ESP32 では自分で `LOCK_TCPIP_CORE()` / `UNLOCK_TCPIP_CORE()` で囲んでください。

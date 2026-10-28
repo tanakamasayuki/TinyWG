@@ -40,7 +40,7 @@ Some uses:
 | Core | `TinyWG` (lwIP) | `TinyWGUdp` | Random source | Verified |
 |---|---|---|---|---|
 | ESP32 / ESP32-S3 (arduino-esp32 3.3) | yes (NAPT available) | yes | `esp_fill_random` | on board (PC to board, two-board TCP, NAPT, long run, Wi-Fi outages, benchmarks) |
-| RP2040 / RP2350 (arduino-pico 6.3, Pico W / Pico 2 W) | yes (not in FreeRTOS mode) | yes | `get_rand_64` | build only |
+| RP2040 / RP2350 (arduino-pico 6.3, Pico W / Pico 2 W) | yes (not in FreeRTOS mode) | yes (FreeRTOS mode too) | `get_rand_64` | build only |
 | CH32V (ArduinoCore-CH32RV 0.4, Network library) | yes | yes | TRNG (V307 and others) | on board, V307 (PC to board over Ethernet, long run, benchmarks) |
 | lang-ship:host (tests on a PC) | — | yes | `/dev/urandom` | interop-tested against the Linux kernel WireGuard |
 
@@ -119,7 +119,7 @@ Override with `-D` (`src/tinywg/wg_config.h`).
 ## Limitations
 
 - IPv4 only, inside and outside the tunnel.
-- arduino-pico in FreeRTOS mode is not supported yet.
+- In arduino-pico's FreeRTOS mode, `TinyWG` (wg0 on lwIP) is not available; use `TinyWGUdp`.
 - If wg0 is made the default route, outer datagrams that would themselves enter the tunnel are dropped (loop prevention).
 
 ## License

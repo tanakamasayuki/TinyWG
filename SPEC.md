@@ -74,7 +74,7 @@ In `TinyWG`, the outer UDP receive callback, the netif output and a 100 ms lwIP 
 | Core | Locking |
 |---|---|
 | ESP32 | `LOCK_TCPIP_CORE()` / `UNLOCK_TCPIP_CORE()`. Calling the public API from an lwIP callback deadlocks |
-| arduino-pico | `LWIPMutex` (the same recursive lock as lwIP's wrappers). FreeRTOS mode is a compile error (not supported) |
+| arduino-pico | `LWIPMutex` (the same recursive lock as lwIP's wrappers). In FreeRTOS mode `TinyWG` is disabled (using it stops at a static_assert); `TinyWGUdp` and the rest work. `TinyWG` in FreeRTOS mode is considered when someone asks |
 | CH32V | none (lwIP runs only after `loop()` and inside `delay()`) |
 
 When the endpoint itself would be routed into wg0 (the outer UDP entering the tunnel), nothing is sent, to avoid a loop (checked with `ip4_route()`).

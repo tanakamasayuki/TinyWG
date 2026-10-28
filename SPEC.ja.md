@@ -74,7 +74,7 @@ App (MQTT ブローカー/クライアント, CoAP, 任意ソケット)
 | コア | 排他の方法 |
 |---|---|
 | ESP32 | `LOCK_TCPIP_CORE()` / `UNLOCK_TCPIP_CORE()`。lwIP のコールバック内から公開 API を呼ぶとデッドロックする |
-| arduino-pico | `LWIPMutex`(lwIP のラッパーと同じ再帰ロック)。FreeRTOS モードはコンパイルエラーにしている(未対応) |
+| arduino-pico | `LWIPMutex`(lwIP のラッパーと同じ再帰ロック)。FreeRTOS モードでは `TinyWG` を無効にする(使うと static_assert で止まる)。`TinyWGUdp` などは使える。FreeRTOS モードでの `TinyWG` 対応は、要望が来たら検討する |
 | CH32V | 不要(lwIP は `loop()` の後と `delay()` の中でしか動かない) |
 
 wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がトンネルに入る)場合、ループを防ぐため送信しない(`ip4_route()` で判定)。

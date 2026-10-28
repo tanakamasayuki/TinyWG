@@ -38,7 +38,7 @@ The public methods called from the sketch serialise with lwIP in a per-core way:
 | Core | Lock | Note |
 |---|---|---|
 | ESP32 | `LOCK_TCPIP_CORE()` | Calling a public method from inside an lwIP callback (some `WiFi.onEvent` handlers, raw API callbacks) deadlocks |
-| arduino-pico | `LWIPMutex` | FreeRTOS mode is not supported (it is a compile error) |
+| arduino-pico | `LWIPMutex` | In FreeRTOS mode `TinyWG` is not available (using it stops the build with a message saying so). `TinyWGUdp`, `Device` and `TinyWGTimeServer` work |
 | CH32V | none | lwIP runs only after each `loop()` and inside `delay()`. Blocking `loop()` for long stops handshakes and timers too |
 
 When you use the engine directly through `wg.device()` on the ESP32, wrap the calls in `LOCK_TCPIP_CORE()` / `UNLOCK_TCPIP_CORE()` yourself.

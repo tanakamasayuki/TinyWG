@@ -7,9 +7,6 @@
 #include <string.h>
 
 #if defined(ARDUINO_ARCH_RP2040)
-#if defined(__FREERTOS)
-#error "TinyWG: arduino-pico in FreeRTOS mode is not supported yet (lwIP runs in its own task there)"
-#endif
 #include <lwip_wrap.h>
 #include <new>
 #elif !NO_SYS && LWIP_TCPIP_CORE_LOCKING
