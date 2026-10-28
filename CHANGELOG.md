@@ -19,6 +19,8 @@
 - (JA) RAM を約 1.6 KB 削減: lwIP アダプタの作業バッファとピアごとの派生鍵をなくした。Device::innerBuffer() で、暗号化する場所に直接パケットを書ける。
 - (EN) The packet waiting for a handshake waits in the send buffer (about 1.3 KB less RAM); setStagingBuffer() gives it a buffer of its own for gateways with several peers. TINYWG_STAGED_PACKET is gone.
 - (JA) ハンドシェイク待ちのパケットを送信バッファの中で待たせる(RAM 約 1.3 KB 減)。複数ピアのゲートウェイは setStagingBuffer() で専用の領域を渡せる。TINYWG_STAGED_PACKET は廃止。
+- (EN) tinywg::CookieGuard: cookie replies under load (whitepaper §5.4.7) for servers facing handshake floods, attached with setCookieGuard(); not linked unless used. Stats gain cookiesSent and rxUnderLoad.
+- (JA) tinywg::CookieGuard: ハンドシェイクの洪水に対し、負荷が高いときに Cookie Reply で応じる(ホワイトペーパー §5.4.7)。setCookieGuard() で付け、使わなければリンクされない。Stats に cookiesSent と rxUnderLoad を追加。
 - (EN) Esp32W5500Client example: a W5500 on Arduino's Ethernet library as the outer side.
 - (JA) Esp32W5500Client サンプル: Arduino の Ethernet ライブラリで動かす W5500 を外側に使う。
 - (EN) Tests: board_responder and board_pair run with each outer mode; board_pair over the full product of boards (--profiles=all --peer-profiles=all).

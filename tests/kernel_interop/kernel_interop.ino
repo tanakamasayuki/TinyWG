@@ -8,6 +8,7 @@
 // Serial commands (one line each):
 //   CFG <private> <peer public> <listen port> <peer port, 0 = none> [<psk>]
 //   HELLO        send the hello datagram
+//   GUARD <n>    a CookieGuard under load above n handshakes a second; -1 removes it
 //   STATS        print the drop counters
 
 #include <WiFi.h>
@@ -17,6 +18,7 @@
 
 static WiFiUDP udp;
 static TinyWGUdp wg;
+static tinywg::CookieGuard guard;
 static bool configured = false;
 
 static uint16_t checksum(const uint8_t *p, size_t n, uint32_t sum = 0)
@@ -119,13 +121,19 @@ static void command(char *line)
         configure(line);
     } else if (strcmp(line, "HELLO") == 0) {
         sendHello();
+    } else if (strncmp(line, "GUARD ", 6) == 0) {
+        int n = atoi(line + 6);
+        if (n >= 0) guard = tinywg::CookieGuard((uint8_t)n);
+        wg.setCookieGuard(n >= 0 ? &guard : nullptr);
+        Serial.printf("GUARD %d\n", n);
     } else if (strcmp(line, "STATS") == 0) {
         tinywg::Stats s = wg.stats();
-        Serial.printf("STATS init=%u done=%u resp=%u badmac=%u hsfail=%u stale=%u replay=%u decrypt=%u notallowed=%u\n",
+        Serial.printf("STATS init=%u done=%u resp=%u badmac=%u hsfail=%u stale=%u replay=%u decrypt=%u notallowed=%u "
+                      "cookies=%u underload=%u\n",
                       (unsigned)s.handshakesInitiated, (unsigned)s.handshakesCompleted,
                       (unsigned)s.handshakesResponded, (unsigned)s.rxBadMac1, (unsigned)s.rxHandshakeFail,
                       (unsigned)s.rxStaleTimestamp, (unsigned)s.rxReplay, (unsigned)s.rxDecryptFail,
-                      (unsigned)s.rxNotAllowed);
+                      (unsigned)s.rxNotAllowed, (unsigned)s.cookiesSent, (unsigned)s.rxUnderLoad);
     }
 }
 

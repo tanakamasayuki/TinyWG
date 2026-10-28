@@ -63,6 +63,24 @@ struct Stats {
     uint32_t handshakesInitiated;
     uint32_t handshakesCompleted;
     uint32_t handshakesResponded;
+    uint32_t cookiesSent;      // cookie replies sent by a HandshakeGuard (under load)
+    uint32_t rxUnderLoad;      // handshake messages a HandshakeGuard dropped
+};
+
+// Decides, before any Diffie-Hellman work, whether a handshake message (mac1
+// already checked) is handled. Device calls it only when one is set, so an
+// implementation that is never set is never linked. CookieGuard
+// (tinywg/wg_cookie.h) is the WireGuard one.
+class HandshakeGuard {
+public:
+    enum Verdict : uint8_t {
+        Accept,       // handle the message
+        Drop,         // ignore it
+        SendCookie,   // ignore it and send the cookie reply written to reply[]
+    };
+    virtual ~HandshakeGuard() {}
+    virtual Verdict check(const uint8_t *msg, size_t len, const Endpoint &from, uint32_t nowMs,
+                          const uint8_t ourPublicKey[32], RandomFn random, uint8_t reply[64]) = 0;
 };
 
 class Device {
@@ -96,6 +114,8 @@ public:
     // can connect again. Silent: no response or data authenticated in that
     // time. 0 (the default) never forgets, as the WireGuard protocol does.
     void setTimestampReset(uint16_t seconds) { timestampResetMs_ = seconds * 1000u; }
+    // Admission of handshake messages under load (cookie replies); nullptr = none.
+    void setHandshakeGuard(HandshakeGuard *guard) { guard_ = guard; }
 
     int findPeer(const uint8_t publicKey[kKeyLen]) const;
     // The peer whose AllowedIPs best match addr (longest prefix), or -1.
@@ -154,6 +174,7 @@ private:
     void anySent(Peer *p, uint32_t nowMs);
     void anyReceived(Peer *p, uint32_t nowMs);
     void heardFrom(Peer *p, uint32_t nowMs);
+    bool admitted(const uint8_t *msg, size_t len, const Endpoint &from, uint32_t nowMs);
     bool timestampForgotten(const Peer *p, uint32_t nowMs) const;
     void wipePeerKeys(Peer *p);
 
@@ -163,6 +184,7 @@ private:
     bool started_;
     uint16_t mtu_;
     uint32_t timestampResetMs_;
+    HandshakeGuard *guard_ = nullptr;
 
     uint8_t staticPrivate_[kKeyLen];
     uint8_t staticPublic_[kKeyLen];

@@ -348,6 +348,21 @@ void Device::heardFrom(Peer *p, uint32_t now)
     p->lastHeardMs = now;
 }
 
+bool Device::admitted(const uint8_t *msg, size_t len, const Endpoint &from, uint32_t now)
+{
+    uint8_t reply[64];
+    switch (guard_->check(msg, len, from, now, staticPublic_, random_, reply)) {
+    case HandshakeGuard::Accept: return true;
+    case HandshakeGuard::SendCookie:
+        transport_->sendOuter(from, reply, sizeof(reply));
+        stats_.cookiesSent++;
+        break;
+    default: break;
+    }
+    stats_.rxUnderLoad++;
+    return false;
+}
+
 bool Device::timestampForgotten(const Peer *p, uint32_t now) const
 {
     return timestampResetMs_ && (!p->heardFrom || (now - p->lastHeardMs) >= timestampResetMs_);
@@ -473,6 +488,8 @@ void Device::handleInitiation(uint8_t *msg, size_t len, const Endpoint &from, ui
         return;
     }
 
+    if (guard_ && !admitted(msg, len, from, now)) return;
+
     uint8_t chainKey[32], hash[32], key[32], dhOut[32], peerStatic[32], timestamp[12];
     const uint8_t *ephemeralI = msg + 8;
     Peer *p = nullptr;
@@ -595,6 +612,7 @@ void Device::handleResponse(uint8_t *msg, size_t len, const Endpoint &from, uint
         stats_.rxBadMac1++;
         return;
     }
+    if (guard_ && !admitted(msg, len, from, now)) return;
 
     uint32_t receiver = get32(msg + 8);
     Peer *p = nullptr;

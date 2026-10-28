@@ -8,6 +8,7 @@
 - [`TinyWG`](#tinywg): lwIP のネットワークインターフェース `wg0`
 - [`TinyWGUdp`](#tinywgudp): 任意の Arduino `UDP` の上で、生の IPv4 パケットを扱う
 - [`TinyWGTimeServer`](#tinywgtimeserver): 必要なら使う簡易 NTP サーバー
+- [`tinywg::CookieGuard`](#tinywgcookieguard): 必要なら付ける、ハンドシェイクの洪水への対策(Cookie Reply)
 - [`tinywg::Device`](#tinywgdevice): プロトコルエンジン
 - [型](#型): `SendResult`、`PeerStatus`、`Stats`、`Endpoint`、関数の型
 - [鍵の関数](#鍵の関数)
@@ -40,6 +41,12 @@
 | メソッド | 戻り値 | 説明 |
 |---|---|---|
 | `bool setStagingBuffer(uint8_t *buffer, size_t size)` | 成否 | セッションがないときに送ろうとした最後の 1 パケットを、ハンドシェイクが済むまで待たせる場所。既定(`nullptr`)は送信バッファの中で、RAM を使わないが、待っている間にほかのピアへ送ると消える。MTU バイトの領域を渡すと消えない(複数ピアのゲートウェイ向け)。`size` が 576 未満なら false。`size` より大きいパケットは送信バッファで待つ |
+
+### ハンドシェイクの洪水への対策
+
+| メソッド | 説明 |
+|---|---|
+| `void setCookieGuard(tinywg::HandshakeGuard *guard)` | 負荷が高いときに Cookie Reply で応じる `tinywg::CookieGuard` を付ける。`nullptr` で外す。付けなければリンクされない。[上級者ガイド §13](guide-advanced.ja.md#13-セキュリティ上の注意) |
 
 ### 時刻チェック
 
@@ -111,6 +118,16 @@ typedef void (*PacketHandler)(int peer, uint8_t *packet, size_t len, void *conte
 | `void update()` | | 届いた問い合わせに答える。`loop()` から呼ぶ |
 | `void setClock(tinywg::WallClockFn fn)` | | 答える時刻の取得方法を差し替える。既定は `gettimeofday()` |
 
+## tinywg::CookieGuard
+
+`#include <TinyWG.h>` で使えます(`tinywg/wg_cookie.h`)。
+
+| メソッド | 説明 |
+|---|---|
+| `CookieGuard(uint8_t handshakesPerSecond = 4, uint8_t perSourcePerSecond = 2)` | 1 秒に `handshakesPerSecond` 通を超えるハンドシェイクが届いたら、負荷が高いとみなす。負荷が高い間は、mac2 のないメッセージに cookie を返し、mac2 の正しいものだけを送信元のアドレスごとに 1 秒 `perSourcePerSecond` 通まで受け付ける |
+
+RAM は約 150 B(cookie の秘密と、送信元 8 件の表)。秘密は 2 分ごとに作り直します。
+
 ## tinywg::Device
 
 lwIP にも Arduino にも依存しないエンジンです。スレッド安全ではありません。すべての呼び出しを、呼ぶ側で直列にしてください。時刻 `nowMs` は `millis()` のような 32 ビットのミリ秒で、一周しても正しく扱います。
@@ -120,7 +137,7 @@ lwIP にも Arduino にも依存しないエンジンです。スレッド安全
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | 秘密鍵と出力先で始める。乱数源がなければ false |
 | `void end()` | ピアと鍵を消去する |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | `TinyWGBase` と同じ |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` | `TinyWGBase` と同じ |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` / `void setHandshakeGuard(HandshakeGuard *)`(`setCookieGuard()` にあたる) | `TinyWGBase` と同じ |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | アドレスをバイト列で渡す |
 | `int findPeer(const uint8_t publicKey[32]) const` | 公開鍵からピアの番号を探す。なければ -1 |
 | `int routePeer(const uint8_t addr[4]) const` | そのアドレス宛てに送るピア(AllowedIPs の最長一致)。なければ -1 |
@@ -177,7 +194,7 @@ public:
 
 すべて `uint32_t` です。項目の意味と主な原因は、[上級者ガイド §10](guide-advanced.ja.md#10-状態の監視と診断) にあります。
 
-`rxShort`、`rxBadMac1`、`rxHandshakeFail`、`rxUnknownPeer`、`rxStaleTimestamp`、`rxFlood`、`rxNoSession`、`rxDecryptFail`、`rxReplay`、`rxNotAllowed`、`rxNotIpv4`、`handshakesInitiated`、`handshakesCompleted`、`handshakesResponded`
+`rxShort`、`rxBadMac1`、`rxHandshakeFail`、`rxUnknownPeer`、`rxStaleTimestamp`、`rxFlood`、`rxNoSession`、`rxDecryptFail`、`rxReplay`、`rxNotAllowed`、`rxNotIpv4`、`handshakesInitiated`、`handshakesCompleted`、`handshakesResponded`、`cookiesSent`、`rxUnderLoad`
 
 ### Endpoint
 

@@ -341,6 +341,7 @@ wg.setStagingBuffer(staging, sizeof(staging));
 | `rxNotAllowed` | The source is not in the peer's AllowedIPs |
 | `rxNotIpv4` | The inner packet is not well-formed IPv4 |
 | `handshakesInitiated` / `Completed` / `Responded` | Handshakes started / completed / answered |
+| `cookiesSent` / `rxUnderLoad` | Cookies a `CookieGuard` sent under load / handshakes it dropped before the expensive part (§13) |
 
 ## 11. `TinyWGUdp`: handling inner packets yourself
 
@@ -451,7 +452,14 @@ Time is a 32-bit millisecond count like `millis()`; the wrap after 49.7 days is 
 
 ## 13. Security notes
 
-- **No Cookie Reply is sent.** Asking peers for a cookie under load (the DoS defence) is not implemented yet; receiving one is. A server exposed directly to the Internet can be flooded with handshake work (about 73 ms each on an ESP32). There is a per-peer limit (50 per second), and handshakes from anyone who does not know this device's public key are dropped at the mac1 check, before the expensive part
+- **Attach a `CookieGuard` against handshake floods.** Anyone who knows the public key can send handshakes with a valid mac1 in bulk, each costing expensive work (about 73 ms on an ESP32). On a server exposed directly to the Internet, attach one:
+
+  ```cpp
+  static tinywg::CookieGuard guard;   // default: under load above 4 a second; 2 a second per source
+  wg.setCookieGuard(&guard);
+  ```
+
+  Under load it answers with a cookie before the expensive part, and handles only senders that really own their source address (they resend with a mac2 made from the cookie), at a limited rate per source. Floods with forged sources are dropped cheaply. Receivers of the cookie (TinyWG, Linux and others) cope by themselves on their retransmission 5 s later. A sketch that does not attach one does not link this code (attached: about 1 KB of flash and 150 B of RAM on an ESP32). Even without it, handshakes from anyone who does not know this device's public key are dropped at the mac1 check, and one peer gets at most 50 a second
 - **Key storage:** the private key sits in flash or NVS in the clear (§5)
 - **IPv4 only**, inside and outside
 

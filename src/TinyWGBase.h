@@ -34,6 +34,9 @@ public:
     // send buffer, costing no RAM; it is lost if something goes to another peer
     // meanwhile. Give a buffer of mtu() bytes on a gateway with several peers.
     bool setStagingBuffer(uint8_t *buffer, size_t size);
+    // Cookie replies for a server facing a flood of handshakes (tinywg/wg_cookie.h).
+    // nullptr removes it. Not linked unless a CookieGuard is created.
+    void setCookieGuard(tinywg::HandshakeGuard *guard);
     // Starts a handshake now instead of on the first packet.
     bool connect(int peer);
 

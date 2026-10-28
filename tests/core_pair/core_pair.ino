@@ -1,8 +1,8 @@
 // Two tinywg::Device engines wired back to back in one process, with a
 // simulated clock: handshake, data both ways, replay and tamper rejection,
 // AllowedIPs enforcement, rekey, passive keepalive, key zeroing,
-// handshake retransmission, a cookie reply, and the timestamp reset for a
-// rebooted peer.
+// handshake retransmission, cookie replies both ways, and the timestamp reset
+// for a rebooted peer.
 // Interop with a real WireGuard is kernel_interop/.
 
 #include <TinyWG.h>
@@ -361,6 +361,75 @@ void setup()
         EXPECT_TRUE("mac2 from cookie", memcmp(g_wire[0].data + 132, expect, 16) == 0);
         dropWire();
         ci.end();
+    }
+
+    // A responder with a CookieGuard (1 handshake a second before it counts as
+    // under load): a second initiation in the same second gets a cookie reply
+    // instead of an answer; the initiator's retransmission carries mac2 and is
+    // answered, but not when it comes from another source port.
+    {
+        static Device gr, i1, i2;
+        static Wire grw, i1w, i2w;
+        static tinywg::CookieGuard guard(1);
+        uint8_t privG[32], pubG[32], priv1[32], pub1[32], priv2[32], pub2[32];
+        generatePrivateKey(privG);
+        derivePublicKey(pubG, privG);
+        generatePrivateKey(priv1);
+        derivePublicKey(pub1, priv1);
+        generatePrivateKey(priv2);
+        derivePublicKey(pub2, priv2);
+        grw.self = 1;
+        i1w.self = 0;
+        i2w.self = 0;
+        gr.begin(privG, &grw);
+        gr.setHandshakeGuard(&guard);
+        gr.addPeer(pub1);
+        gr.addPeer(pub2);
+        const Endpoint grEnd{{127, 0, 0, 1}, 2}, from1{{127, 0, 0, 1}, 101}, from2{{127, 0, 0, 1}, 102};
+        i1.begin(priv1, &i1w);
+        i1.addPeer(pubG);
+        i1.setEndpoint(0, grEnd);
+        i2.begin(priv2, &i2w);
+        i2.addPeer(pubG);
+        i2.setEndpoint(0, grEnd);
+        dropWire();
+
+        i1.connect(0, g_now);
+        static Datagram m, init1;
+        init1 = m = g_wire[0];
+        dropWire();
+        gr.receiveOuter(m.data, m.len, from1, g_now);
+        EXPECT_TRUE("guard: first answered", gr.stats().handshakesResponded == 1 && g_wireCount == 1 && g_wire[0].len == 92);
+        dropWire();
+
+        i2.connect(0, g_now);
+        static Datagram init2;
+        init2 = g_wire[0];
+        dropWire();
+        gr.receiveOuter(init2.data, init2.len, from2, g_now);
+        EXPECT_TRUE("guard: cookie under load", gr.stats().cookiesSent == 1 && gr.stats().handshakesResponded == 1 &&
+                                                    g_wireCount == 1 && g_wire[0].len == 64);
+        m = g_wire[0];
+        dropWire();
+        i2.receiveOuter(m.data, m.len, grEnd, g_now);
+        EXPECT_TRUE("guard: cookie taken", i2.stats().rxHandshakeFail == 0);
+
+        g_now += 6000;
+        i2.tick(g_now);   // retransmission with mac2
+        static Datagram retry;
+        retry = g_wire[0];
+        dropWire();
+        gr.receiveOuter(init1.data, init1.len, from1, g_now);   // a replay: counts toward the load, not answered
+        dropWire();
+        gr.receiveOuter(retry.data, retry.len, Endpoint{{127, 0, 0, 1}, 103}, g_now);
+        EXPECT_TRUE("guard: mac2 tied to source", gr.stats().cookiesSent == 2 && gr.stats().handshakesResponded == 1);
+        dropWire();
+        gr.receiveOuter(retry.data, retry.len, from2, g_now);
+        EXPECT_TRUE("guard: mac2 answered", gr.stats().handshakesResponded == 2 && g_wireCount == 1 && g_wire[0].len == 92);
+        dropWire();
+        gr.end();
+        i1.end();
+        i2.end();
     }
 
     // The packet waiting for a handshake sits in the send buffer by default and

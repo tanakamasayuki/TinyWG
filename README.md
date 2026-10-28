@@ -119,7 +119,6 @@ Override with `-D` (`src/tinywg/wg_config.h`).
 ## Limitations
 
 - IPv4 only, inside and outside the tunnel.
-- Cookie replies are received but never sent (no under-load mode).
 - arduino-pico in FreeRTOS mode is not supported yet.
 - If wg0 is made the default route, outer datagrams that would themselves enter the tunnel are dropped (loop prevention).
 

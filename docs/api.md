@@ -8,6 +8,7 @@
 - [`TinyWG`](#tinywg): the lwIP network interface `wg0`
 - [`TinyWGUdp`](#tinywgudp): raw IPv4 packets over any Arduino `UDP`
 - [`TinyWGTimeServer`](#tinywgtimeserver): an optional simple NTP server
+- [`tinywg::CookieGuard`](#tinywgcookieguard): optional cookie replies against handshake floods
 - [`tinywg::Device`](#tinywgdevice): the protocol engine
 - [Types](#types): `SendResult`, `PeerStatus`, `Stats`, `Endpoint`, function types
 - [Key functions](#key-functions)
@@ -40,6 +41,12 @@ Key strings are always the 44-character Base64 printed by `wg genkey` / `wg pubk
 | Method | Returns | Description |
 |---|---|---|
 | `bool setStagingBuffer(uint8_t *buffer, size_t size)` | success | Where the last packet sent with no session waits for the handshake. The default (`nullptr`) is the send buffer: no RAM, but sending to another peer meanwhile loses it. A buffer of MTU bytes keeps it (gateways with several peers). false when `size` is under 576. A packet larger than `size` waits in the send buffer |
+
+### Handshake floods
+
+| Method | Description |
+|---|---|
+| `void setCookieGuard(tinywg::HandshakeGuard *guard)` | Attaches a `tinywg::CookieGuard`, which answers with cookie replies under load. `nullptr` removes it. Not linked unless used. [Advanced guide §13](guide-advanced.md#13-security-notes) |
 
 ### Timestamp check
 
@@ -111,6 +118,16 @@ A small server that answers NTP (SNTP) with the device's own clock. Works over a
 | `void update()` | | Answers the requests that arrived. Call from `loop()` |
 | `void setClock(tinywg::WallClockFn fn)` | | Replaces the clock served. The default is `gettimeofday()` |
 
+## tinywg::CookieGuard
+
+Available through `#include <TinyWG.h>` (`tinywg/wg_cookie.h`).
+
+| Method | Description |
+|---|---|
+| `CookieGuard(uint8_t handshakesPerSecond = 4, uint8_t perSourcePerSecond = 2)` | Under load once more than `handshakesPerSecond` handshake messages arrive within a second. Under load, a message without mac2 gets a cookie, and only those with a valid mac2 are handled, up to `perSourcePerSecond` a second per source address |
+
+About 150 B of RAM (the cookie secret and a table of 8 sources). The secret is renewed every 2 minutes.
+
 ## tinywg::Device
 
 The engine, with no lwIP or Arduino dependency. Not thread-safe: the caller serialises every call. `nowMs` is a 32-bit millisecond count like `millis()`; wrapping is handled.
@@ -120,7 +137,7 @@ The engine, with no lwIP or Arduino dependency. Not thread-safe: the caller seri
 | `bool begin(const uint8_t privateKey[32], Transport *transport)` | Starts with the private key and the output. false with no random source |
 | `void end()` | Wipes peers and keys |
 | `void setRandom(RandomFn fn)` / `void setWallClock(WallClockFn fn)` | As in `TinyWGBase` |
-| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` | As in `TinyWGBase` |
+| `int addPeer(...)` / `bool removePeer(int)` / `bool setEndpoint(int, const Endpoint &)` / `bool setPersistentKeepalive(int, uint16_t)` / `bool setMtu(uint16_t)` / `uint16_t mtu() const` / `void setTimestampReset(uint16_t)` / `bool setStagingBuffer(uint8_t *, size_t)` / `void setHandshakeGuard(HandshakeGuard *)` (what `setCookieGuard()` calls) | As in `TinyWGBase` |
 | `bool addAllowedIp(int peer, const uint8_t addr[4], uint8_t cidr)` | Address as bytes |
 | `int findPeer(const uint8_t publicKey[32]) const` | The peer with this public key, or -1 |
 | `int routePeer(const uint8_t addr[4]) const` | The peer a packet to this address goes to (longest AllowedIPs match), or -1 |
@@ -177,7 +194,7 @@ public:
 
 All `uint32_t`. What each means and its usual cause: [advanced guide §10](guide-advanced.md#10-monitoring-and-diagnosis).
 
-`rxShort`, `rxBadMac1`, `rxHandshakeFail`, `rxUnknownPeer`, `rxStaleTimestamp`, `rxFlood`, `rxNoSession`, `rxDecryptFail`, `rxReplay`, `rxNotAllowed`, `rxNotIpv4`, `handshakesInitiated`, `handshakesCompleted`, `handshakesResponded`
+`rxShort`, `rxBadMac1`, `rxHandshakeFail`, `rxUnknownPeer`, `rxStaleTimestamp`, `rxFlood`, `rxNoSession`, `rxDecryptFail`, `rxReplay`, `rxNotAllowed`, `rxNotIpv4`, `handshakesInitiated`, `handshakesCompleted`, `handshakesResponded`, `cookiesSent`, `rxUnderLoad`
 
 ### Endpoint
 

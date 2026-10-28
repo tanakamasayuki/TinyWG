@@ -62,6 +62,13 @@ bool TinyWGBase::setMtu(uint16_t mtu)
     return ok;
 }
 
+void TinyWGBase::setCookieGuard(tinywg::HandshakeGuard *guard)
+{
+    lock();
+    device_.setHandshakeGuard(guard);
+    unlock();
+}
+
 bool TinyWGBase::setStagingBuffer(uint8_t *buffer, size_t size)
 {
     lock();

@@ -91,7 +91,7 @@ wg0 の宛先にエンドポイント自身が含まれる(外側の UDP がト�
 - 鍵更新タイマー(REKEY_AFTER_TIME / REJECT_AFTER_TIME / REKEY_AFTER_MESSAGES / REKEY_TIMEOUT 等)
 - セッションの current / previous / next 切替
 - リプレイ防止スライディングウィンドウ(幅はコンパイル時設定 `TINYWG_REPLAY_WINDOW`、既定 128 ビット)
-- Cookie Reply: 受信・処理は実装済み。送信(負荷時応答)は未実装
+- Cookie Reply: 受信・処理は実装済み。送信(負荷時応答)は、必要なスケッチだけが付ける `tinywg::CookieGuard`(付けなければリンクされない)。Linux カーネルが cookie を受け取り mac2 付きで再送することを `kernel_interop` で確認
 
 ### 4.2 レスポンダ / ゲートウェイ
 

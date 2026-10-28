@@ -9,6 +9,7 @@
 
 #include "tinywg_version.h"
 #include "TinyWGBase.h"
+#include "tinywg/wg_cookie.h"
 #include "TinyWGLwip.h"
 #include "TinyWGUdp.h"
 #include "TinyWGTimeServer.h"

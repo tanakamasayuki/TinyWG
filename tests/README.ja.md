@@ -14,9 +14,9 @@ unshare -rn uv run pytest kernel_interop      # Linux カーネル WireGuard と
 |---|---|---|
 | `smoke/` | ビルドとハーネスの確認 | host / esp32 / ch32v307 / picow |
 | `crypto_vectors/` | BLAKE2s、MAC、KDF、X25519、ChaCha20-Poly1305 の出力を、Python の `hashlib` / `cryptography` で独立に計算した値と照合。AEAD の改ざん検出、低位数点の拒否、Base64 | 同上 |
-| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い、Cookie Reply の受信と mac2、再起動して時刻が戻ったピアと `setTimestampReset()` | 同上 |
+| `core_pair/` | エンジン 2 つを同じプロセスで向かい合わせる。ハンドシェイク、双方向のデータ、リプレイと改ざんの拒否、AllowedIPs、順序の入れ替わり、keepalive、鍵の更新とゼロ化、再送、PSK 違い、Cookie Reply の受信と mac2、`CookieGuard`(負荷時の cookie、送信元に結びついた mac2)、再起動して時刻が戻ったピアと `setTimestampReset()` | 同上 |
 | `time_server/` | `TinyWGTimeServer` の応答(モード、バージョン、stratum、元の送信時刻、配る時刻)、無視すべき要求、chrony があれば実際の NTP クライアントからの問い合わせ | host のみ |
-| `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信 | host のみ |
+| `kernel_interop/` | Linux カーネルの WireGuard と相互接続。カーネルからの開始(TinyWG がレスポンダ)、TinyWG からの開始(イニシエータ)、ping、MTU 1420 ちょうど、PSK、PSK 違い、300 パケットの連続送信、`CookieGuard` の cookie をカーネルが受け取って再送 | host のみ |
 | `bench_crypto/` | Phase 0 の計測。X25519、ハンドシェイクの各段、AEAD / BLAKE2s の速さ、エンジンの RAM | host / esp32 / esp32s3 / ch32v307 / picow |
 | `pypeer_selftest/` | 実機テストで PC 側に使う Python 製 WireGuard ピア(`helpers/wg_peer.py`)を、カーネル WireGuard と突き合わせて検証(イニシエータ / レスポンダ、PSK あり) | PC のみ(スケッチなし) |
 | `board_responder/` | 実機が Wi-Fi(ESP32)または Ethernet(CH32V307)で TinyWG(lwIP の wg0)を動かし、PC の Python ピアから接続。ping(lwIP が応答)、UDP の echo(1392 B まで)、100 往復、ボードからの再ハンドシェイク、PSK、未登録の鍵の拒否、実行時の MTU 変更(1000 にすると返事が分割される)、ESP32 では NAPT(トンネル越しに LAN のルーターへ ping と DNS) | esp32 / esp32s3(要 `.env` の Wi-Fi)/ ch32v307(要 LAN ケーブル) |

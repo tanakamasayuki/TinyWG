@@ -113,6 +113,22 @@ def wrong_preshared_key(dut, kernel):
     assert kernel.latest_handshake() == 0
 
 
+def cookie_reply(dut, kernel):
+    """TinyWG under load answers the kernel's initiation with a cookie reply; the
+    kernel retries with mac2 (after REKEY_TIMEOUT) and gets a session."""
+    configure(dut, kernel, peer_port=0)
+    dut.write("GUARD 0\n")   # every handshake counts as under load
+    dut.expect("GUARD 0", timeout=5)
+    try:
+        assert udp_echo(b"behind-a-cookie", timeout=15) == b"behind-a-cookie"
+        dut.write("STATS\n")
+        m = dut.expect(re.compile(rb"cookies=(\d+) underload=(\d+)"), timeout=5)
+        assert int(m.group(1)) >= 1, "no cookie reply sent"
+    finally:
+        dut.write("GUARD -1\n")
+        dut.expect("GUARD -1", timeout=5)
+
+
 def burst(dut, kernel):
     """Many packets in a row: counters, replay window and padding over a long run."""
     configure(dut, kernel, peer_port=0)
@@ -145,7 +161,7 @@ def burst(dut, kernel):
     assert len(got) == sent, f"{len(got)}/{sent} echoes"
 
 
-SCENARIOS = [kernel_initiates, ping, full_mtu, dut_initiates, preshared_key, wrong_preshared_key, burst]
+SCENARIOS = [kernel_initiates, ping, full_mtu, dut_initiates, preshared_key, wrong_preshared_key, burst, cookie_reply]
 
 
 def test_kernel_interop(dut, record_property):

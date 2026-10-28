@@ -91,7 +91,7 @@ When the endpoint itself would be routed into wg0 (the outer UDP entering the tu
 - Rekey timers (REKEY_AFTER_TIME / REJECT_AFTER_TIME / REKEY_AFTER_MESSAGES / REKEY_TIMEOUT and others)
 - current / previous / next session rotation
 - Sliding replay window (size set at build time with `TINYWG_REPLAY_WINDOW`, 128 bits by default)
-- Cookie Reply: received and processed. Sending one (under load) is not implemented
+- Cookie Reply: received and processed. Sending one (under load) is `tinywg::CookieGuard`, attached only by sketches that want it (not linked otherwise). `kernel_interop` checks that the Linux kernel takes the cookie and resends with mac2
 
 ### 4.2 Responder / gateway
 

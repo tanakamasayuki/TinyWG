@@ -2,6 +2,7 @@ TinyWG	KEYWORD1
 TinyWGUdp	KEYWORD1
 TinyWGBase	KEYWORD1
 TinyWGTimeServer	KEYWORD1
+CookieGuard	KEYWORD1
 addPeer	KEYWORD2
 removePeer	KEYWORD2
 addAllowedIp	KEYWORD2
@@ -19,6 +20,7 @@ setMtu	KEYWORD2
 setTimestampReset	KEYWORD2
 setOuterUdp	KEYWORD2
 setStagingBuffer	KEYWORD2
+setCookieGuard	KEYWORD2
 setClock	KEYWORD2
 mtu	KEYWORD2
 stats	KEYWORD2
